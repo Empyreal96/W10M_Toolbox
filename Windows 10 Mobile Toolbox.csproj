@@ -1,0 +1,81 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net5.0-windows</TargetFramework>
+    <RootNamespace>W10M_Toolbox</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Square44x44Logo.altform-unplated_targetsize-256.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Authors>Empyreal96</Authors>
+    <Description>Simple tool to help WP users manage their Phone.</Description>
+    <Copyright>Empyreal96</Copyright>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>Empyreal_Key.pfx</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="AppData\bin\buildlists\10549.4.txt" />
+    <None Remove="AppData\bin\buildlists\10570.0.txt" />
+    <None Remove="AppData\bin\buildlists\10586.107.txt" />
+    <None Remove="AppData\bin\buildlists\14393.1066.cbsu.txt" />
+    <None Remove="AppData\bin\buildlists\14393.1066.txt" />
+    <None Remove="AppData\bin\buildlists\15063.297.txt" />
+    <None Remove="AppData\bin\buildlists\15254.603.txt" />
+    <None Remove="AppData\bin\iutool\getdulogs.exe" />
+    <None Remove="AppData\bin\iutool\iutool.exe" />
+    <None Remove="AppData\bin\thor2\thor2.exe" />
+    <None Remove="AppData\bin\wpinternals\PADDING" />
+    <None Remove="AppData\Temp\PADDING" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="AppData\RegistryBackups\" />
+    <Folder Include="AppData\PhoneUpdates\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MahApps.Metro" Version="2.4.9" />
+    <PackageReference Include="System.Management" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="AppData\bin\buildlists\10549.4.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\buildlists\10570.0.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\buildlists\10586.107.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\buildlists\14393.1066.cbsu.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\buildlists\14393.1066.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\buildlists\15063.297.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\buildlists\15254.603.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\iutool\getdulogs.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\iutool\iutool.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\thor2\thor2.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\wpinternals\PADDING">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\Temp\PADDING">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

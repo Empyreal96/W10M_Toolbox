@@ -1,0 +1,33 @@
+﻿<Window x:Class="W10M_Toolbox.AssetsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:W10M_Toolbox"
+        xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+        mc:Ignorable="d"
+        Title="Assets" Height="450" Width="800"
+         Background="#FF1E1E1E">
+    <Grid>
+        <mah:MetroHeader 
+            Content="Assets required for use will be downloaded to .\AppData. Credit to respective Owners." 
+            Width="790"
+            VerticalAlignment="Top" FontWeight="Normal" FontSize="18" Foreground="#FF4390DF" Margin="10,0,10,0"/>
+        <TextBlock x:Name="WPInternalsHelp"
+                   Width="210"
+                   Height="150"
+                   TextWrapping="Wrap" Margin="25,48,565,236" Foreground="White" FontSize="14"/>
+        <Button x:Name="WPInternalsDL"
+                Click="WPInternalsDL_Click"
+                Width="Auto"
+                Height="50"
+                Content="Fetch WPInternals"
+                Margin="30,203,570,131"
+                Background="#FF2D2D30"
+                            BorderBrush="#FF333333"
+                            Foreground="#FFFBFBFB" 
+                            mah:ControlsHelper.FocusBorderBrush="#FF333337"/>
+        <TextBlock x:Name="DLProgressText" TextWrapping="Wrap" Width="780" Height="65" IsEnabled="False" Margin="10,327,10,42" Foreground="#FF4386B8" FontSize="16"/>
+        <mah:MetroProgressBar x:Name="AssetsProgress" Width="800" Height="25" Margin="0,384,0,10" IsEnabled="False"/>
+    </Grid>
+</Window>
