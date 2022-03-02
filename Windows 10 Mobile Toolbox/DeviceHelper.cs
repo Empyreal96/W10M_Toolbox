@@ -329,6 +329,31 @@ namespace W10M_Toolbox.DeviceHelper
                 }
             }
         }
+
+
+
+        public static void UpdateInMassStorage(List<string> fileList, string cabFolder, Process ProcessHook)
+        {
+
+            System.Diagnostics.Process process = new System.Diagnostics.Process();
+            process.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Minimized;
+            process.StartInfo.FileName = @$"AppData\bin\iutool\updateapp.exe";
+            process.StartInfo.Arguments = $"install \"{cabFolder}\"";
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.CreateNoWindow = false;
+            process.OutputDataReceived += Process_OutputDataReceived1;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardInput = true;
+            process.StartInfo.RedirectStandardError = true;
+            ProcessHook = process;
+            process.Start();
+            process.WaitForExit();
+        }
+
+        private static void Process_OutputDataReceived1(object sender, DataReceivedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 }

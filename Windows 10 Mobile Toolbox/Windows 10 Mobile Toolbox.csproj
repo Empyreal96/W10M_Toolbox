@@ -24,6 +24,9 @@
     <None Remove="AppData\bin\buildlists\15254.603.txt" />
     <None Remove="AppData\bin\iutool\getdulogs.exe" />
     <None Remove="AppData\bin\iutool\iutool.exe" />
+    <None Remove="AppData\bin\iutool\updateapi.dll" />
+    <None Remove="AppData\bin\iutool\updateapp.exe" />
+    <None Remove="AppData\bin\res\flightcert\SbcpFlightToken.p7b" />
     <None Remove="AppData\bin\thor2\thor2.exe" />
     <None Remove="AppData\bin\wpinternals\PADDING" />
     <None Remove="AppData\Temp\PADDING" />
@@ -65,6 +68,15 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="AppData\bin\iutool\iutool.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\iutool\updateapi.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\iutool\updateapp.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="AppData\bin\res\flightcert\SbcpFlightToken.p7b">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="AppData\bin\thor2\thor2.exe">

@@ -69,6 +69,9 @@ namespace W10M_Toolbox
         bool IsRebooting;
         bool IsBootedToMSC;
         string FlashOutput;
+        Process Updateapp;
+        static int PagingSize;
+        bool IsFlightingEnabled;
         public MainWindow()
         {
             InitializeComponent();
@@ -242,11 +245,13 @@ namespace W10M_Toolbox
                 else
                 {
                     DeviceInfotext.Text = "Check to see if your device has booted to Mass Storage correctly.";
+                    IsRebooting = false;
                 }
             }
             else
             {
                 DeviceInfotext.Text = "WPInternals could not be found! Make sure to check the Assets page";
+                IsRebooting = false;
             }
 
         }
@@ -660,10 +665,25 @@ namespace W10M_Toolbox
 
         private void MountRegBtn_Click(object sender, RoutedEventArgs e)
         {
+
+            CheckForReg();
             TweaksProgBar.IsIndeterminate = true;
             MassStorage();
             TweaksProgBar.IsIndeterminate = false;
 
+        }
+
+        private void CheckForReg()
+        {
+            try
+            {
+
+                RegistryInterop.Unload();
+            }
+            catch
+            {
+
+            }
         }
 
         private void UnMountRegBtn_Click(object sender, RoutedEventArgs e)
@@ -784,8 +804,8 @@ namespace W10M_Toolbox
                 GetMassStorageDrive();
                 if (!File.Exists($"{Drive}\\Windows\\System32\\Config\\SYSTEM"))
                 {
-                    Debug.WriteLine($"{Drive}\\Windows\\System32\\Config\\SYSTEM   NOT FOUND\n");
-                    BasicTweakPageHeader.Text = "Cannot load Phone Registry.\nIs the device connected and in Mass Storage Mode?";
+                    Debug.WriteLine($"{Drive}\\Windows\\System32\\Config\\SYSTEM  >  NOT FOUND\n");
+                    BasicTweakPageHeader.Text = "Cannot load Phone Registry. Is the device connected and in Mass Storage Mode?";
                 }
                 else
                 {
@@ -804,7 +824,7 @@ namespace W10M_Toolbox
                     Debug.WriteLine("SYSTEM hive path set.\n");
                     hivepath2 = $"{Drive}\\Windows\\System32\\Config\\SOFTWARE";
                     Debug.WriteLine("SOFTWARE hive path set.\n");
-                    string currentdate = DateTime.Now.ToString("dd-MM-yyyy_HH-mm");
+                    string currentdate = DateTime.Now.ToString("dd-MM-yyyy_HH-mm-ss");
                     if (!Directory.Exists(@".\AppData\RegistryBackups"))
                     {
                         Directory.CreateDirectory(@".\AppData\RegistryBackups");
@@ -812,7 +832,7 @@ namespace W10M_Toolbox
                         if (!Directory.Exists($@".\AppData\RegistryBackups\{deviceType}\{currentdate}"))
                         {
                             Directory.CreateDirectory($@".\AppData\RegistryBackups\{deviceType}\{currentdate}");
-                            Debug.WriteLine($".\\AppData\\RegistryBackups\\{deviceType}\\{currentdate}  CREATED.\n");
+                            Debug.WriteLine($".\\AppData\\RegistryBackups\\{deviceType}\\{currentdate}  >  CREATED.\n");
                         }
                     }
                     else
@@ -820,16 +840,17 @@ namespace W10M_Toolbox
                         if (!Directory.Exists($@".\AppData\RegistryBackups\{deviceType}\{currentdate}"))
                         {
                             Directory.CreateDirectory($@".\AppData\RegistryBackups\{deviceType}\{currentdate}");
-                            Debug.WriteLine($".\\AppData\\RegistryBackups\\{deviceType}\\{currentdate}  CREATED. \n");
+                            Debug.WriteLine($".\\AppData\\RegistryBackups\\{deviceType}\\{currentdate}  >  CREATED. \n");
                         }
                     }
                     File.Copy($"{Drive}\\Windows\\System32\\Config\\SYSTEM", $@".\AppData\RegistryBackups\{deviceType}\{currentdate}\SYSTEM.hive");
-                    Debug.WriteLine($".\\AppData\\RegistryBackups\\{deviceType}\\{currentdate}\\SYSTEM.hive   CREATED\n");
+                    Debug.WriteLine($".\\AppData\\RegistryBackups\\{deviceType}\\{currentdate}\\SYSTEM.hive  >   CREATED\n");
                     File.Copy($"{Drive}\\Windows\\System32\\Config\\SOFTWARE", $@".\AppData\RegistryBackups\{deviceType}\{currentdate}\SOFTWARE.hive");
-                    Debug.WriteLine($".\\AppData\\RegistryBackups\\{deviceType}\\{currentdate}\\SOFTWARE.hive   CREATED\n");
+                    Debug.WriteLine($".\\AppData\\RegistryBackups\\{deviceType}\\{currentdate}\\SOFTWARE.hive   >  CREATED\n");
+                    File.Copy($"{Drive}\\EFIESP\\EFI\\Microsoft\\BOOT\\BCD", $@".\AppData\RegistryBackups\{deviceType}\{currentdate}\BCD.backup");
 
                     loadedHive = RegistryInterop.Load(hivepath);
-                    registry = Registry.Users.OpenSubKey(loadedHive);
+                    registry = Registry.Users.OpenSubKey(loadedHive, true);
 
                     Debug.Write($"SYSTEM Hive loaded from: {hivepath}\n");
 
@@ -838,13 +859,15 @@ namespace W10M_Toolbox
                     Debug.WriteLine($"SOFTWARE hive loaded from: {hivepath2}");
                     BasicTweakPageHeader.Text = "Registry Loaded, View/Modify the values below. Click 'Save Changes' to apply edits";
                     IsRegistryMounted = true;
-                    RegistryKey DeviceBranding = registry.OpenSubKey(@"Platform\DeviceTargetingInfo", RegistryKeyPermissionCheck.ReadSubTree);
-                    RegistryKey WUSettings = registry2.OpenSubKey(@"Microsoft\Windows\CurrentVersion\DeviceUpdate\Agent\Settings", RegistryKeyPermissionCheck.ReadSubTree);
-                    RegistryKey DevModeConfig = registry2.OpenSubKey(@"Microsoft\Windows\CurrentVersion\AppModelUnlock", RegistryKeyPermissionCheck.ReadSubTree);
-                    RegistryKey MTPSettings = registry2.OpenSubKey(@"Microsoft\MTP", RegistryKeyPermissionCheck.ReadSubTree);
-                    RegistryKey DevicePortalSetting = registry.OpenSubKey(@"ControlSet001\Services\WebManagement", RegistryKeyPermissionCheck.ReadSubTree);
-                    RegistryKey DevicePortalAuthSetting = registry2.OpenSubKey(@"Microsoft\Windows\CurrentVersion\WebManagement\Authentication", RegistryKeyPermissionCheck.ReadSubTree);
-                    RegistryKey LocalCrashDumpsSetting = registry2.OpenSubKey(@"Microsoft\Windows\Windows Error Reporting\LocalDumps", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey DeviceBranding = registry.CreateSubKey(@"Platform\DeviceTargetingInfo", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey WUSettings = registry2.CreateSubKey(@"Microsoft\Windows\CurrentVersion\DeviceUpdate\Agent\Settings", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey DevModeConfig = registry2.CreateSubKey(@"Microsoft\Windows\CurrentVersion\AppModelUnlock", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey MTPSettings = registry2.CreateSubKey(@"Microsoft\MTP", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey DevicePortalSetting = registry.CreateSubKey(@"ControlSet001\Services\WebManagement", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey DevicePortalAuthSetting = registry2.CreateSubKey(@"Microsoft\Windows\CurrentVersion\WebManagement\Authentication", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey LocalCrashDumpsSetting = registry2.CreateSubKey(@"Microsoft\Windows\Windows Error Reporting\LocalDumps", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey WindowsFirewallSetting = registry.CreateSubKey(@"ControlSet001\Services\MpsSvc", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey PagingSettings = registry.CreateSubKey(@"ControlSet001\Control\Session Manager\Memory Management", RegistryKeyPermissionCheck.ReadSubTree);
                     if (DeviceBranding != null)
                     {
                         modelName = DeviceBranding.GetValue("PhoneModelName").ToString();
@@ -910,88 +933,163 @@ namespace W10M_Toolbox
                         {
                             DevModeCheckBox.IsChecked = true;
                         }
-                        if (MTPSettings != null)
+
+
+                    }
+                    if (MTPSettings != null)
+                    {
+                        MTPUSBButton.IsChecked = false;
+                    }
+                    else
+                    {
+                        if (MTPSettings.GetValue("DataStore").ToString() == @"C:\Data\Users\PUBLIC")
                         {
                             MTPUSBButton.IsChecked = false;
                         }
+                        if (MTPSettings.GetValue("DataStore").ToString() == @"C:")
+                        {
+                            MTPUSBButton.IsChecked = true;
+                        }
                         else
                         {
-                            if (MTPSettings.GetValue("DataStore").ToString() == @"C:\Data\Users\PUBLIC")
-                            {
-                                MTPUSBButton.IsChecked = false;
-                            }
-                            if (MTPSettings.GetValue("DataStore").ToString() == @"C:")
-                            {
-                                MTPUSBButton.IsChecked = true;
-                            } else
-                            {
-                                MTPUSBButton.IsChecked = false;
-                            }
+                            MTPUSBButton.IsChecked = false;
                         }
+                    }
 
 
 
-                        if (DevicePortalSetting != null)
+                    if (DevicePortalSetting != null)
+                    {
+
+                        if (DevicePortalSetting.GetValue("Start").ToString() == "2")
                         {
-                            
-                            if (DevicePortalSetting.GetValue("Start").ToString() == "2")
-                            {
-                                DevPortalBtn.IsChecked = true;
-                                Debug.WriteLine($"{DevicePortalSetting.GetValue("Start").ToString()}    < Device Portal \"start\"");
-                            }
-                            else
-                            {
-                                DevPortalBtn.IsChecked = false;
-                            }
+                            DevPortalBtn.IsChecked = true;
+                            Debug.WriteLine($"{DevicePortalSetting.GetValue("Start").ToString()}    < Device Portal \"start\"");
                         }
                         else
                         {
                             DevPortalBtn.IsChecked = false;
-
                         }
-                        if (DevicePortalAuthSetting != null)
+                    }
+                    else
+                    {
+                        DevPortalBtn.IsChecked = false;
+
+                    }
+
+
+                    if (DevicePortalAuthSetting != null)
+                    {
+                        if (DevicePortalAuthSetting.GetValue("Disabled").ToString() == "1")
                         {
-                            DevPortalAuthBtn.IsChecked = true;
+                            DevPortalAuthBtn.IsChecked = false;
                         }
                         else
                         {
-                            if (DevicePortalAuthSetting.GetValue("Disabled").ToString() == "1")
-                            {
-                                DevPortalAuthBtn.IsChecked = false;
-                            }
-                            else
-                            {
-                                DevPortalAuthBtn.IsChecked = true;
-                            }
+                            DevPortalAuthBtn.IsChecked = true;
                         }
 
-                        if (LocalCrashDumpsSetting != null)
+
+                    }
+                    else
+                    {
+                        DevPortalAuthBtn.IsChecked = true;
+
+                    }
+
+                    if (LocalCrashDumpsSetting != null)
+                    {
+                        if (LocalCrashDumpsSetting.GetValue("DumpType") != null)
                         {
-                            if (LocalCrashDumpsSetting.GetValue("DumpType") != null)
+                            if (LocalCrashDumpsSetting.GetValue("DumpType").ToString() == "2")
                             {
-                                if (LocalCrashDumpsSetting.GetValue("DumpType").ToString() == "2")
-                                {
-                                    LocalCrashDumpsCheck.IsChecked = true;
-                                }
-                                else
-                                {
-                                    LocalCrashDumpsCheck.IsChecked = false;
-                                }
-                                
+                                LocalCrashDumpsCheck.IsChecked = true;
                             }
                             else
                             {
                                 LocalCrashDumpsCheck.IsChecked = false;
-
                             }
-                           
-                        } 
+
+                        }
                         else
                         {
                             LocalCrashDumpsCheck.IsChecked = false;
+
                         }
 
+                    }
+                    else
+                    {
+                        LocalCrashDumpsCheck.IsChecked = false;
+                    }
 
+                    if (WindowsFirewallSetting != null)
+                    {
+                        if (WindowsFirewallSetting.GetValue("Start").ToString() == "2")
+                        {
+                            FirewallCheck.IsChecked = true;
+                        }
+                        else
+                        {
+                            FirewallCheck.IsChecked = false;
+                        }
+                    }
+
+
+                    if (PagingSettings != null)
+                    {
+                        string[] dataset = (string[])PagingSettings.GetValue("PagingFiles");
+                        string datastring = String.Join("", dataset);
+                        Debug.WriteLine($"\n{datastring}");
+                        if (datastring == @"u:\pagefile.sys 256 256")
+                        {
+                            PagingSlider.Value = (double)256;
+                            PagingLabel.Text = "Page File Size (256MB)";
+
+
+                        }
+                        if (datastring == @"u:\pagefile.sys 512 512")
+                        {
+                            PagingSlider.Value = (double)512;
+                            PagingLabel.Text = "Page File Size (512MB)";
+
+                        }
+                        if (datastring == @"u:\pagefile.sys 1024 1024")
+                        {
+                            PagingSlider.Value = (double)1024;
+                            PagingLabel.Text = "Page File Size (1024MB)";
+
+                        }
+                        if (datastring == @"u:\pagefile.sys 2048 2048")
+                        {
+                            PagingSlider.Value = (double)2048;
+                            PagingLabel.Text = "Page File Size (2048MB)";
+
+                        }
+
+                        // Destination :- HKEY_LOCAL_MACHINE \ SYSTEM \ CurrentControlSet \ Control \ Session Manager \ Memory Management/ Pagingfiles
+
+                        // Then you can change the value  according to what amount of paging files you wish to have.
+
+                        //256mb - Input 256 256
+                        //512mb - Input 512 512
+                        //1GB - Input 1024 1024
+                        //2GB - Input 1980 1980
+                    }
+                    else
+                    {
+                        BasicTweakPageHeader.Text = "Didn't work";
+                        // Debug.WriteLine($"\n{(string[])PagingSettings.GetValue("PagingFiles")[1]}");
+                    }
+
+                    CheckBCD();
+                    if (IsFlightingEnabled == false)
+                    {
+                        FlightSigningCheck.IsChecked = false;
+                    }
+                    else
+                    {
+                        FlightSigningCheck.IsChecked = true;
                     }
                 }
 
@@ -1005,6 +1103,62 @@ namespace W10M_Toolbox
         }
 
         #endregion
+
+        private void CheckBCD()
+        {
+            //flightsigning           Yes
+            System.Diagnostics.Process process = new System.Diagnostics.Process();
+            process.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Minimized;
+            process.StartInfo.FileName = @$"bcdedit.exe";
+            process.StartInfo.Arguments = $"/store \"{Drive}\\EFIESP\\EFI\\Microsoft\\BOOT\\BCD\" /enum";
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.CreateNoWindow = true;
+
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardInput = true;
+            process.StartInfo.RedirectStandardError = true;
+
+            process.Start();
+            string output = process.StandardOutput.ReadToEnd();
+            if (output.Contains("flightsigning           Yes"))
+            {
+                if (File.Exists($"{Drive}\\EFIESP\\EFI\\Microsoft\\BOOT\\policies\\SbcpFlightToken.p7b"))
+                {
+                    IsFlightingEnabled = true;
+                }
+                else
+                {
+                    IsFlightingEnabled = false;
+                }
+
+            }
+            else
+            {
+                IsFlightingEnabled = false;
+            }
+            process.WaitForExit();
+        }
+
+        private void ModifyBCD(string OnOff)
+        {
+
+
+            System.Diagnostics.Process process = new System.Diagnostics.Process();
+            process.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Minimized;
+            process.StartInfo.FileName = @$"bcdedit.exe";
+            process.StartInfo.Arguments = $"/store \"{Drive}\\EFIESP\\EFI\\Microsoft\\BOOT\\BCD\" /set " + "{default} flightsigning " + OnOff;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.CreateNoWindow = true;
+
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardInput = true;
+            process.StartInfo.RedirectStandardError = true;
+
+            process.Start();
+            string output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+        }
+
 
         private void DevModeCheckBox_Checked(object sender, RoutedEventArgs e)
         {
@@ -1033,7 +1187,7 @@ namespace W10M_Toolbox
             TweaksProgBar.IsIndeterminate = true;
             BasicTweakPageHeader.Text = "Writing settings to Phone Registry";
             // Save Reg Keys
-            RegistryKey DevModeConfig = registry2.OpenSubKey(@"Microsoft\Windows\CurrentVersion\AppModelUnlock", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            RegistryKey DevModeConfig = registry2.CreateSubKey(@"Microsoft\Windows\CurrentVersion\AppModelUnlock", RegistryKeyPermissionCheck.ReadWriteSubTree);
             if (DevModeCheckBox.IsChecked == true)
             {
 
@@ -1047,7 +1201,7 @@ namespace W10M_Toolbox
             }
 
 
-            RegistryKey WUSettings = registry2.OpenSubKey(@"Microsoft\Windows\CurrentVersion\DeviceUpdate\Agent\Settings", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            RegistryKey WUSettings = registry2.CreateSubKey(@"Microsoft\Windows\CurrentVersion\DeviceUpdate\Agent\Settings", RegistryKeyPermissionCheck.ReadWriteSubTree);
             if (WUCheckBox.IsChecked == true)
             {
                 string originalValue = File.ReadAllText(@$".\AppData\RegistryBackups\{deviceType}\WUGUID.txt").Replace("WUGUID:", "");
@@ -1060,7 +1214,7 @@ namespace W10M_Toolbox
             }
 
 
-            RegistryKey DeviceBranding = registry.OpenSubKey(@"Platform\DeviceTargetingInfo", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            RegistryKey DeviceBranding = registry.CreateSubKey(@"Platform\DeviceTargetingInfo", RegistryKeyPermissionCheck.ReadWriteSubTree);
             if (DeviceModelBox.Text != modelName)
             {
                 DeviceBranding.SetValue("PhoneModelName", DeviceModelBox.Text, RegistryValueKind.String);
@@ -1076,7 +1230,7 @@ namespace W10M_Toolbox
 
             // reg add HKLM\Software\Microsoft\MTP /V DataStore /t REG_SZ /d C: /f)
             // (reg add HKLM\Software\ /V DataStore /t REG_SZ /d  /f
-            RegistryKey MTPSettings = registry2.OpenSubKey(@"Microsoft\MTP", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            RegistryKey MTPSettings = registry2.CreateSubKey(@"Microsoft\MTP", RegistryKeyPermissionCheck.ReadWriteSubTree);
             if (MTPUSBButton.IsChecked == true)
             {
                 MTPSettings.SetValue("DataStore", "C:", RegistryValueKind.String);
@@ -1089,8 +1243,8 @@ namespace W10M_Toolbox
 
             // reg add "HKEY_LOCAL_MACHINE\RTSystem\" /v Start /t REG_DWORD /d 2 /f
             // reg add "HKEY_LOCAL_MACHINE\RTSoftware\" / v Disabled / t REG_DWORD / d 1 / f
-            RegistryKey DevicePortalSetting = registry.OpenSubKey(@"ControlSet001\Services\WebManagement", RegistryKeyPermissionCheck.ReadWriteSubTree);
-            RegistryKey DevicePortalAuthSetting = registry2.OpenSubKey(@"Microsoft\Windows\CurrentVersion\WebManagement\Authentication", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            RegistryKey DevicePortalSetting = registry.CreateSubKey(@"ControlSet001\Services\WebManagement", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            RegistryKey DevicePortalAuthSetting = registry2.CreateSubKey(@"Microsoft\Windows\CurrentVersion\WebManagement\Authentication", RegistryKeyPermissionCheck.ReadWriteSubTree);
             if (DevPortalBtn.IsChecked == true)
             {
                 DevicePortalSetting.SetValue("Start", 2, RegistryValueKind.DWord);
@@ -1107,25 +1261,42 @@ namespace W10M_Toolbox
             {
                 DevicePortalAuthSetting.SetValue("Disabled", 1, RegistryValueKind.DWord);
             }
-            RegistryKey LocalCrashDumpsSetting = registry2.OpenSubKey(@"Microsoft\Windows\Windows Error Reporting\LocalDumps", RegistryKeyPermissionCheck.ReadWriteSubTree);
+
+
+            RegistryKey WindowsFirewallSetting = registry.CreateSubKey(@"ControlSet001\Services\MpsSvc", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            if (FirewallCheck.IsChecked == true)
+            {
+                WindowsFirewallSetting.SetValue("Start", 2, RegistryValueKind.DWord);
+            }
+            else
+            {
+                WindowsFirewallSetting.SetValue("Start", 4, RegistryValueKind.DWord);
+            }
+
+
+            RegistryKey LocalCrashDumpsSetting = registry2.CreateSubKey(@"Microsoft\Windows\Windows Error Reporting\LocalDumps", RegistryKeyPermissionCheck.ReadWriteSubTree);
             if (LocalCrashDumpsCheck.IsChecked == true)
             {
                 string dumppath1 = @"C:\Data\Users\Public\CrashDumps";
-                string dumppath = "43,00,3a,00,5c,00,44,00,61,00,74,00,61,00,5c,00,55," +
-                                             "00,73,00,65,00,72,00,73,00,5c,00,50,00,75,00,62,00," +
-                                             "6c,00,69,00,63,00,5c,00,44,00,6f,00,63,00,75,00,6d," +
-                                             "00,65,00,6e,00,74,00,73,00,00,00";
-                var dumpdata = dumppath.Split(",").Select(x => Convert.ToByte(x, 16)).ToArray();
-               if (LocalCrashDumpsSetting == null)
+                /* string dumppath = "43,00,3a,00,5c,00,44,00,61,00,74,00,61,00,5c,00,55," +
+                                              "00,73,00,65,00,72,00,73,00,5c,00,50,00,75,00,62,00," +
+                                              "6c,00,69,00,63,00,5c,00,44,00,6f,00,63,00,75,00,6d," +
+                                              "00,65,00,6e,00,74,00,73,00,00,00"; */
+                //var dumpdata = dumppath.Split(",").Select(x => Convert.ToByte(x, 16)).ToArray();
+                if (LocalCrashDumpsSetting == null)
                 {
                     registry2.CreateSubKey(@"Microsoft\Windows\Windows Error Reporting\LocalDumps", true);
-                    
-                    LocalCrashDumpsSetting.SetValue("DumpType", 2, RegistryValueKind.DWord);
-                    
-                    LocalCrashDumpsSetting.SetValue("DumpFolder", dumppath1, RegistryValueKind.ExpandString);
-                    
-                    LocalCrashDumpsSetting.SetValue("DumpCount", 10, RegistryValueKind.DWord);
-                } else
+                    Thread.Sleep(2000);
+                    if (registry2.OpenSubKey(@"Microsoft\Windows\Windows Error Reporting\LocalDumps", true) != null)
+                    {
+                        LocalCrashDumpsSetting.SetValue("DumpType", 2, RegistryValueKind.DWord);
+
+                        LocalCrashDumpsSetting.SetValue("DumpFolder", dumppath1, RegistryValueKind.ExpandString);
+
+                        LocalCrashDumpsSetting.SetValue("DumpCount", 10, RegistryValueKind.DWord);
+                    }
+                }
+                else
                 {
                     LocalCrashDumpsSetting.SetValue("DumpType", 2, RegistryValueKind.DWord);
 
@@ -1133,14 +1304,57 @@ namespace W10M_Toolbox
 
                     LocalCrashDumpsSetting.SetValue("DumpCount", 10, RegistryValueKind.DWord);
                 }
-                
-               
-            } else
+
+
+
+
+            }
+            else
             {
                 LocalCrashDumpsSetting.SetValue("DumpType", 0, RegistryValueKind.DWord);
                 LocalCrashDumpsSetting.SetValue("DumpCount", 0, RegistryValueKind.DWord);
 
             }
+
+            RegistryKey PagingSettings = registry.OpenSubKey(@"ControlSet001\Control\Session Manager\Memory Management", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            if (PagingSlider.Value == 256)
+            {
+                string[] newvalue = { @"u:\pagefile.sys 256 256" };
+                PagingSettings.SetValue("PagingFiles", newvalue, RegistryValueKind.MultiString);
+            }
+            if (PagingSlider.Value == 512)
+            {
+                string[] newvalue = { @"u:\pagefile.sys 512 512" };
+                PagingSettings.SetValue("PagingFiles", newvalue, RegistryValueKind.MultiString);
+            }
+            if (PagingSlider.Value == 1024)
+            {
+                string[] newvalue = { @"u:\pagefile.sys 1024 1024" };
+                PagingSettings.SetValue("PagingFiles", newvalue, RegistryValueKind.MultiString);
+            }
+            if (PagingSlider.Value == 2048)
+            {
+                string[] newvalue = { @"u:\pagefile.sys 2048 2048" };
+                PagingSettings.SetValue("PagingFiles", newvalue, RegistryValueKind.MultiString);
+            }
+
+            if (FlightSigningCheck.IsChecked == true)
+            {
+                ModifyBCD("on");
+                if (File.Exists($"{Drive}\\EFIESP\\EFI\\Microsoft\\BOOT\\policies\\SbcpFlightToken.p7b"))
+                {
+
+                }
+                else
+                {
+                    File.Copy(@".\AppData\bin\res\flightcert\SbcpFlightToken.p7b", $"{Drive}\\EFIESP\\EFI\\Microsoft\\BOOT\\policies\\SbcpFlightToken.p7b");
+                }
+            }
+            else
+            {
+                ModifyBCD("off");
+            }
+
             Thread.Sleep(1000);
             BasicTweakPageHeader.Text = "Saved settings to device";
             TweaksProgBar.IsIndeterminate = false;

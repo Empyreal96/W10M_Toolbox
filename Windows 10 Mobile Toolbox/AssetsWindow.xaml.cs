@@ -102,7 +102,10 @@ namespace W10M_Toolbox
             AssetsProgress.IsIndeterminate = true;
             if (!Directory.Exists(outputpath))
                 {
-                ZipFile.ExtractToDirectory(filepath, outputpath);
+                await Task.Run(() =>
+                {
+                    ZipFile.ExtractToDirectory(filepath, outputpath);
+                });
                 DLProgressText.Text = "Finished";
                 WPInternalsDL.IsEnabled = false;
                 AssetsProgress.IsEnabled = false;
@@ -110,8 +113,11 @@ namespace W10M_Toolbox
             } else
             {
                 DLProgressText.Text = "Removing old data";
-                Directory.Delete(outputpath, true);
-                ZipFile.ExtractToDirectory(filepath, outputpath);
+                await Task.Run(() =>
+                {
+                    Directory.Delete(outputpath, true);
+                    ZipFile.ExtractToDirectory(filepath, outputpath);
+                });
                 DLProgressText.Text = "Finished";
                 WPInternalsDL.IsEnabled = false;
                 AssetsProgress.IsIndeterminate = false;
