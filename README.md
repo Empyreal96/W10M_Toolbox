@@ -30,10 +30,18 @@ Added:
  - Local Crash Dumps
  - Flight Signing
 
-More to be added
+### Backup device storage to file
+ - Whole Disk Dump
+ - Seperate Partitions
+
+### FFU Conversion
+ - Convert WP8.x `.ffu` to `.vhdx`
+
 
 ## Notes:
 
 - Third party tools are used with this tool, all rights reserved to the owners.
 - This tool includes "iutool" suite and "thor2.exe"
 - WPInternals is required to automate various tasks, the latest will be downloaded through the app, and saved in the apps's data folder
+- Some code has beed modified from WPInternals (Mass Storage Detection), snippets from many StackExchange pages.
+- Uses [dd for windows](http://www.chrysocome.net/dd) for partition backup only
