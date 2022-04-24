@@ -15,30 +15,27 @@
                  Background="#FF2D2D30">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="371*"/>
-            <ColumnDefinition Width="29*"/>
+            <ColumnDefinition/>
         </Grid.ColumnDefinitions>
 
-        <mah:MetroTabControl x:Name="MainTabView" SelectionChanged="MetroTabControl_SelectionChanged" Grid.ColumnSpan="2">
+        <mah:MetroTabControl x:Name="MainTabView" SelectionChanged="MetroTabControl_SelectionChanged">
             <TabItem Header=" Home "
                      Padding="5,5,5,5"
                      Background="#FF1E1E1E">
                 <Grid Background="#FF1E1E1E">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="147*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="631*"/>
+                        <ColumnDefinition/>
                     </Grid.ColumnDefinitions>
                     <mah:MetroHeader 
                         x:Name="HomeHeader"
                         Height="40"
                         Content=" Windows Mobile Toolbox"
-                        VerticalAlignment="Top" FontWeight="Normal" FontSize="20" Foreground="#FF4390DF" Margin="10,0,10,0" Grid.ColumnSpan="3"/>
-                    <TextBlock x:Name="HomeAbout" Margin="10,49,418,202"
+                        VerticalAlignment="Top" FontWeight="Normal" FontSize="20" Foreground="#FF4390DF" Margin="10,0,10,0"/>
+                    <TextBlock x:Name="HomeAbout" Margin="10,49,418,116"
                                TextWrapping="Wrap" 
-                               Foreground="White" Background="#FF1E1E1E" Grid.ColumnSpan="3"/>
+                               Foreground="White" Background="#FF1E1E1E"/>
                     <Border BorderBrush="WhiteSmoke" Width="auto"
-                            Height="auto" Margin="236,45,10,104" Background="#FF333337" Grid.Column="2">
+                            Height="auto" Margin="387,45,10,104" Background="#FF333337">
                         <ScrollViewer>
                             <TextBlock x:Name="DeviceInfotext" 
                                Text=""
@@ -52,13 +49,13 @@
         Background="#FF2D2D30"
                             BorderBrush="#FF333333"
                             Foreground="#FFFBFBFB" 
-                            mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="469,290,10,44" Grid.Column="2"/>
+                            mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="620,290,10,44"/>
 
 
                     <Button x:Name="AssetsButton"
                             Click="AssetsButton_Click"
                             Content="Check Assets" 
-                            Margin="10,290,27,44"
+                            Margin="10,290,676,44"
                             Background="#FF2D2D30"
                             BorderBrush="#FF333333"
                             Foreground="#FFFBFBFB" 
@@ -70,7 +67,7 @@
                             Background="#FF2D2D30"
                             BorderBrush="#FF333333"
                             Foreground="#FFFBFBFB" 
-                            mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="351,290,186,44" Grid.Column="2"/>
+                            mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="502,290,186,44"/>
 
                     <Button x:Name="RebootToMSC"
                             Click="RebootToMSC_Click"
@@ -78,19 +75,19 @@
                             Background="#FF2D2D30"
                             BorderBrush="#FF333333"
                             Foreground="#FFFBFBFB" 
-                            mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="231,290,304,44" Grid.Column="2"/>
+                            mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="382,290,304,44"/>
                     <Button x:Name="RebootToNormal"
                             
                             Content="Normal Mode" 
                             HorizontalAlignment="Left" 
-                            Margin="112,290,0,44" 
+                            Margin="263,290,0,44" 
                             
                             Background="#FF2D2D30"
                             BorderBrush="#FF333333"
                             Foreground="#FFFBFBFB" 
                             mah:ControlsHelper.FocusBorderBrush="#FF333337"
-                            Click="RebootToNormal_Click" Width="114" Grid.Column="2"/>
-                    <ProgressBar x:Name="HomeProgress" HorizontalAlignment="Left" Height="23" Margin="10,345,0,0" VerticalAlignment="Top" Width="780" Background="#FF252526" BorderBrush="#FF333337" Grid.ColumnSpan="3"/>
+                            Click="RebootToNormal_Click" Width="114"/>
+                    <ProgressBar x:Name="HomeProgress" HorizontalAlignment="Center" Height="23" Margin="0,345,0,0" VerticalAlignment="Top" Width="780" Background="#FF252526" BorderBrush="#FF333337"/>
 
                 </Grid>
             </TabItem>
@@ -229,7 +226,7 @@
                     <Label x:Name="SOCVersionLabel" Margin="114,199,588,138" Foreground="#FFFDFCFC" Background="{x:Null}" FontSize="14"/>
                     <CheckBox x:Name="DevModeCheckBox" ToolTipService.InitialShowDelay="1000"  ToolTip="Enable/Disable Developer Mode to allow sideloading of Unsigned apps and other Developer functions" Content="Developer Mode" Unchecked="DevModeCheckBox_Unchecked" Checked="DevModeCheckBox_Checked" HorizontalAlignment="Center" Margin="0,92,0,0" VerticalAlignment="Top" Height="44" Width="166" Foreground="White" FontSize="14" mah:CheckBoxHelper.ForegroundUnchecked="White" mah:CheckBoxHelper.ForegroundChecked="White" mah:CheckBoxHelper.BorderBrushUncheckedMouseOver="White" mah:CheckBoxHelper.BorderBrushCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundUncheckedMouseOver="#FFFBFBFB" mah:CheckBoxHelper.ForegroundCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundCheckedPressed="#FF0D5DB2" mah:CheckBoxHelper.ForegroundUncheckedPressed="#FF0D5DB2"/>
                     <CheckBox x:Name="WUCheckBox" ToolTipService.InitialShowDelay="1000"  ToolTip="Enable/Disable Windows Update from searching for Updates" Content="Windows Update" Unchecked="WUCheckBox_Unchecked" Checked="WUCheckBox_Checked" HorizontalAlignment="Center" Margin="0,141,0,0" VerticalAlignment="Top" Height="44" Width="166" Foreground="White" FontSize="14" mah:CheckBoxHelper.ForegroundUnchecked="White" mah:CheckBoxHelper.ForegroundChecked="White" mah:CheckBoxHelper.BorderBrushUncheckedMouseOver="White" mah:CheckBoxHelper.BorderBrushCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundUncheckedMouseOver="#FFFBFBFB" mah:CheckBoxHelper.ForegroundCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundCheckedPressed="#FF0D5DB2" mah:CheckBoxHelper.ForegroundUncheckedPressed="#FF0D5DB2"/>
-                    <CheckBox x:Name="MTPUSBButton" ToolTipService.InitialShowDelay="1000"  ToolTip="Enable/Disable direct access to C:\ over MTP USB" Content="C:\ access over MTP"  HorizontalAlignment="Left" Margin="5,276,0,0" VerticalAlignment="Top" Height="44" Width="167" Foreground="White" FontSize="14" mah:CheckBoxHelper.ForegroundUnchecked="White" mah:CheckBoxHelper.ForegroundChecked="White" mah:CheckBoxHelper.BorderBrushUncheckedMouseOver="White" mah:CheckBoxHelper.BorderBrushCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundUncheckedMouseOver="#FFFBFBFB" mah:CheckBoxHelper.ForegroundCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundCheckedPressed="#FF0D5DB2" mah:CheckBoxHelper.ForegroundUncheckedPressed="#FF0D5DB2"/>
+                    <CheckBox x:Name="MTPUSBButton" ToolTipService.InitialShowDelay="1000"  ToolTip="Enable/Disable direct access to C:\ over MTP USB" Content="C:\ access over MTP"  HorizontalAlignment="Left" Margin="7,276,0,0" VerticalAlignment="Top" Height="44" Width="167" Foreground="White" FontSize="14" mah:CheckBoxHelper.ForegroundUnchecked="White" mah:CheckBoxHelper.ForegroundChecked="White" mah:CheckBoxHelper.BorderBrushUncheckedMouseOver="White" mah:CheckBoxHelper.BorderBrushCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundUncheckedMouseOver="#FFFBFBFB" mah:CheckBoxHelper.ForegroundCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundCheckedPressed="#FF0D5DB2" mah:CheckBoxHelper.ForegroundUncheckedPressed="#FF0D5DB2"/>
                     <CheckBox x:Name="DevPortalBtn" ToolTipService.InitialShowDelay="1000"  ToolTip="Enable/Disable Device Portal" Content="Device Portal"  HorizontalAlignment="Center" Margin="0,188,0,0" VerticalAlignment="Top" Height="44" Width="166" Foreground="White" FontSize="14" mah:CheckBoxHelper.ForegroundUnchecked="White" mah:CheckBoxHelper.ForegroundChecked="White" mah:CheckBoxHelper.BorderBrushUncheckedMouseOver="White" mah:CheckBoxHelper.BorderBrushCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundUncheckedMouseOver="#FFFBFBFB" mah:CheckBoxHelper.ForegroundCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundCheckedPressed="#FF0D5DB2" mah:CheckBoxHelper.ForegroundUncheckedPressed="#FF0D5DB2"/>
                     <CheckBox x:Name="DevPortalAuthBtn" ToolTipService.InitialShowDelay="1000"  ToolTip="Enable/Disable Device Portal Authentication" Content="Portal Authentication"  HorizontalAlignment="Center" Margin="0,232,0,0" VerticalAlignment="Top" Height="44" Width="166" Foreground="White" FontSize="14" mah:CheckBoxHelper.ForegroundUnchecked="White" mah:CheckBoxHelper.ForegroundChecked="White" mah:CheckBoxHelper.BorderBrushUncheckedMouseOver="White" mah:CheckBoxHelper.BorderBrushCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundUncheckedMouseOver="#FFFBFBFB" mah:CheckBoxHelper.ForegroundCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundCheckedPressed="#FF0D5DB2" mah:CheckBoxHelper.ForegroundUncheckedPressed="#FF0D5DB2"/>
                     <ProgressBar x:Name="TweaksProgBar" HorizontalAlignment="Center" Height="23" Margin="0,345,0,0" VerticalAlignment="Top" Width="780" Background="#FF252526" BorderBrush="#FF333337"/>
@@ -238,8 +235,132 @@
                     <Slider x:Name="PagingSlider" HorizontalAlignment="Left" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" Minimum="256" Maximum="2048" TickPlacement="BottomRight" Ticks="256, 512, 1024, 2048" IsSnapToTickEnabled="True"  Margin="646,280,0,0" VerticalAlignment="Top" Width="120" Height="44" />
                     <TextBlock x:Name="PagingLabel" ToolTip="Previous size before changes" ToolTipService.InitialShowDelay="1000" HorizontalAlignment="Left" Margin="544,280,0,0" Text="Page File Size (MB)" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="White" FontSize="14" Height="44" Width="99"/>
                     <CheckBox x:Name="FlightSigningCheck" ToolTipService.InitialShowDelay="1000"  ToolTip="Enable/Disable Flight Signing for Insider Builds" Content="Flight Signing"  HorizontalAlignment="Left" Margin="544,232,0,0" VerticalAlignment="Top" Height="44" Width="166" Foreground="White" FontSize="14" mah:CheckBoxHelper.ForegroundUnchecked="White" mah:CheckBoxHelper.ForegroundChecked="White" mah:CheckBoxHelper.BorderBrushUncheckedMouseOver="White" mah:CheckBoxHelper.BorderBrushCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundUncheckedMouseOver="#FFFBFBFB" mah:CheckBoxHelper.ForegroundCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundCheckedPressed="#FF0D5DB2" mah:CheckBoxHelper.ForegroundUncheckedPressed="#FF0D5DB2"/>
+                    <CheckBox x:Name="ExtraSoundSetting" ToolTipService.InitialShowDelay="1000"  ToolTip="Enable/Disable Extra Sound options. Settings/Personalization/Sounds" Content="Extra Sound Settings"  HorizontalAlignment="Left" Margin="544,188,0,0" VerticalAlignment="Top" Height="44" Width="166" Foreground="White" FontSize="14" mah:CheckBoxHelper.ForegroundUnchecked="White" mah:CheckBoxHelper.ForegroundChecked="White" mah:CheckBoxHelper.BorderBrushUncheckedMouseOver="White" mah:CheckBoxHelper.BorderBrushCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundUncheckedMouseOver="#FFFBFBFB" mah:CheckBoxHelper.ForegroundCheckedMouseOver="White" mah:CheckBoxHelper.ForegroundCheckedPressed="#FF0D5DB2" mah:CheckBoxHelper.ForegroundUncheckedPressed="#FF0D5DB2"/>
 
 
+                </Grid>
+            </TabItem>
+            <TabItem Header=" Backup " Name="BackupTab"
+                     Padding="5,5,5,5"
+                     Background="#FF1E1E1E">
+                <Grid Background="#FF1E1E1E">
+                    <mah:MetroHeader 
+                        x:Name="BackupHeader"
+                        Height="35"
+                        Content=" Backup various parts of your device"
+                        VerticalAlignment="Top" FontWeight="Normal" FontSize="20" Foreground="#FF4390DF" Margin="10,0,10,0"/>
+                    <Button x:Name="StartBackupBtn"
+                        Click="StartBackupBtn_Click"
+                        Content="Whole Disk"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        
+                    mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="10,40,676,293"/>
+
+                    <Border BorderBrush="WhiteSmoke" Width="auto"
+                            Height="auto" Margin="139,40,10,61" Background="#FF333337">
+                        <ScrollViewer>
+                            <TextBlock x:Name="BackupOutput" 
+                               Text=""
+                               ScrollViewer.CanContentScroll="True"
+                               TextWrapping="Wrap" Margin="4,4,4,4" Background="#FF1E1E1E" Foreground="#FFF7F7F7"/>
+                        </ScrollViewer>
+                    </Border>
+                    <ProgressBar x:Name="BackupProgressBar" HorizontalAlignment="Center" Height="23" Margin="0,345,0,0" VerticalAlignment="Top" Width="780" Background="#FF252526" BorderBrush="#FF333337"/>
+                    <Button x:Name="PartitionsBackupBtn"
+                        Click="PartitionsBackupBtn_Click"
+                        Content="Save Partitions"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="10,275,676,58"/>
+                    <CheckBox x:Name="PartData" Checked="PartData_Checked" Unchecked="PartData_Unchecked" Content="" HorizontalAlignment="Left" Margin="14,244,0,0" VerticalAlignment="Top" Foreground="White" Height="26" Width="32"/>
+                    <Label Content="Data" HorizontalAlignment="Left" Margin="37,244,0,0" VerticalAlignment="Top" Foreground="White" Width="97"/>
+                    <CheckBox x:Name="PartMainOS" Checked="PartMainOS_Checked" Unchecked="PartMainOS_Unchecked" Content="" HorizontalAlignment="Left" Margin="14,218,0,0" VerticalAlignment="Top" Foreground="White" Height="26" Width="32"/>
+                    <Label Content="MainOS" HorizontalAlignment="Left" Margin="37,218,0,0" VerticalAlignment="Top" Foreground="White" Width="97"/>
+                    <CheckBox x:Name="PartEFIESP" Checked="PartEFIESP_Checked" Unchecked="PartEFIESP_Unchecked" Content="" HorizontalAlignment="Left" Margin="14,192,0,0" VerticalAlignment="Top" Foreground="White" Height="26" Width="32"/>
+                    <Label Content="EFIESP" HorizontalAlignment="Left" Margin="37,192,0,0" VerticalAlignment="Top" Foreground="White" Width="97"/>
+                    <Button x:Name="HelpBtn"
+                        Click="HelpBtn_Click"
+                        Content="Help"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="735,2,10,337"/>
+                    <Button x:Name="OpenDiskMgmt"
+                        Click="OpenDiskMgmt_Click"
+                        Content="Windows Disk Manager"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="579,2,70,337"/>
+                    <Button x:Name="CancelBackup"
+                        Click="CancelBackup_Click"
+                        Content="cancel backup"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="10,96,676,237"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header=" FFU " Name="FFUInfoTab"
+                     Padding="5,5,5,5"
+                     Background="#FF1E1E1E">
+                <Grid Background="#FF1E1E1E">
+                    <mah:MetroHeader 
+                        x:Name="FFUHeader"
+                        Height="35"
+                        Content=" View FFU Information"
+                        VerticalAlignment="Top" FontWeight="Normal" FontSize="20" Foreground="#FF4390DF" Margin="10,0,10,0"/>
+                    <Button x:Name="FFULoadBtn"
+                        Click="FFULoadBtn_Click"
+                        Content="Load FFU"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="10,48,676,285"/>
+                    <Border BorderBrush="WhiteSmoke" Width="auto"
+                            Height="auto" Margin="129,45,375,49" Background="#FF333337">
+                        <TextBlock x:Name="FFUInfoOutput" ScrollViewer.CanContentScroll="True" HorizontalAlignment="Stretch" Text="" TextWrapping="Wrap" VerticalAlignment="Stretch" Height="auto" Margin="4,4,4,4" Width="auto" Foreground="White" Background="#FF1E1E1E"/>
+                    </Border>
+                    <Border BorderBrush="WhiteSmoke" Width="auto"
+                            Height="auto" Margin="425,45,10,49" Background="#FF333337">
+                        <ScrollViewer>
+                            <TextBlock x:Name="FFUManifestOutput" 
+                               Text=""
+                               ScrollViewer.CanContentScroll="True"
+                               TextWrapping="Wrap" Margin="4,4,4,4" Background="#FF1E1E1E" Foreground="#FFF7F7F7"/>
+                        </ScrollViewer>
+                    </Border>
+                    <Button x:Name="SaveFFUAsVhdx"
+                        Click="SaveFFUAsVhdx_Click"
+                        Content="Save as VHDX"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="10,104,676,229"/>
+                    <ProgressBar x:Name="FFUProgress" HorizontalAlignment="Center" Height="23" Margin="0,345,0,0" VerticalAlignment="Top" Width="780" Background="#FF252526" BorderBrush="#FF333337"/>
+                    <Button x:Name="SaveFFUAsRawBtn"
+                        Click="SaveFFUAsRaw_Click"
+                        Content="Save as IMG"
+                            IsEnabled="False"
+                            Visibility="Hidden"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="10,170,676,163"/>
+                    <Button x:Name="SaveFFUManifestBtn"
+                        Click="SaveFFUManifestBtn_Click"
+                        Content="Save Manifest"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="10,160,676,173"/>
                 </Grid>
             </TabItem>
         </mah:MetroTabControl>

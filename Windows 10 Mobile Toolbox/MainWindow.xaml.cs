@@ -9,6 +9,7 @@ using System.Management;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -22,10 +23,16 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using DiskManager;
+using FfuConvert;
 using MahApps.Metro.Controls;
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
+using Microsoft.WindowsAPICodePack.Dialogs;
+using ReadFromDevice;
 using W10M_Toolbox.DeviceHelper;
 using WPDevPortal;
+using static W10M_Toolbox.PartitionHelper;
 
 namespace W10M_Toolbox
 {
@@ -72,10 +79,37 @@ namespace W10M_Toolbox
         Process Updateapp;
         static int PagingSize;
         bool IsFlightingEnabled;
+        string MainOSDrive;
+        string DataDrive;
+        string EFIESPDrive;
+        string MainOSPhysicalDisk;
+        string MainOSLabel;
+        string EFIESPLabel;
+        string Datalabel;
+
+        BackgroundWorker worker;
+
         public MainWindow()
         {
-            InitializeComponent();
 
+            InitializeComponent();
+            worker = new BackgroundWorker();
+            worker.DoWork += Worker_DoWork;
+            worker.ProgressChanged += Worker_ProgressChanged;
+            worker.RunWorkerCompleted += Worker_RunWorkerCompleted;
+            worker.WorkerReportsProgress = true;
+            worker.WorkerSupportsCancellation = true;
+
+            worker2 = new BackgroundWorker();
+            worker2.DoWork += Worker2_DoWork;
+            worker2.ProgressChanged += Worker2_ProgressChanged;
+            worker2.RunWorkerCompleted += Worker2_RunWorkerCompleted;
+            worker2.WorkerReportsProgress = true;
+            worker2.WorkerSupportsCancellation = true;
+
+
+            SaveFFUAsVhdx.IsEnabled = false;
+            SaveFFUManifestBtn.IsEnabled = false;
             var proc = Process.GetCurrentProcess();
             windowName = proc.MainWindowTitle;
             IntPtr hWnd = (IntPtr)FindWindow(windowName, null);
@@ -89,8 +123,161 @@ namespace W10M_Toolbox
             HomeAbout.Text = "Welcome, This tool will let you modify certain setting on your Windows 10 based Phone. This tool uses WPInternals to manage Reboots to different modes\n\n" +
                 "Requirements:\n" +
                 "- Access to Mass Storage Mode on your Phone\n" +
+                "- EFIESP, Data and MainOS mounted to a Drive Letter" +
                 "- Internet Access (Only for downloading Application Assets below)";
             UpdaterInfotext.Text = "Click \"View Update Log\" or \"Installed Packages\" to view the respective logs.\n\nSelect a build to download and flash. ";
+            BackupOutput.Text = "Here you can backup either the whole Disk or selected partitions. Make sure your phone is fully charged before a full disk backup!\n\nThis uses \"dd for windows by John Newbigin\" to make the partition backups only\n\n";
+
+        }
+
+        private void Worker2_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            if (IsCancelBackupClicked != true)
+            {
+                MessageBox.Show("Successfully dumped partitions");
+            }
+        }
+
+        private void Worker2_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            Debug.WriteLine(".");
+        }
+        int MAINOS_INDEX;
+        int DATA_INDEX;
+        int EFIESP_INDEX;
+        bool IsBackupOutSelected = false;
+        private void Worker2_DoWork(object sender, DoWorkEventArgs e)
+        {
+            var openfolder = new CommonOpenFileDialog();
+            openfolder.Title = "Select output for emmc dump file";
+            openfolder.IsFolderPicker = true;
+            openfolder.InitialDirectory = ".\\";
+            openfolder.EnsurePathExists = true;
+            Dispatcher.Invoke(new Action(() =>
+            {
+                if (openfolder.ShowDialog() == CommonFileDialogResult.Ok)
+            {
+                IsBackupOutSelected = true;
+            } else
+            {
+                IsBackupOutSelected = false;
+            }
+            }), DispatcherPriority.ContextIdle);
+
+
+            if (IsBackupOutSelected == true)
+            {
+
+
+                DriveInfo[] driveInfos = DriveInfo.GetDrives();
+
+
+                var diskid = Regex.Match(MAINOS_PHYSICAL, @"\d+").Value;
+                
+                Debug.WriteLine($"DiskID: {Int32.Parse(diskid)}");
+                int partcount = 0;
+                ManagementObjectSearcher searcher = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_DiskPartition");
+                var diskSize = DiskInfo.GetPhysDiskSize(MAINOS_PHYSICAL);
+                Console.WriteLine();
+                foreach (ManagementObject queryObj in searcher.Get())
+                {
+
+                    if ((uint)queryObj["DiskIndex"] == Int32.Parse(diskid))
+                    {
+                        partcount++;
+                        Debug.WriteLine("-----------------------------------");
+
+                        Debug.WriteLine("Win32_DiskPartition instance");
+
+                        Debug.WriteLine($"Name: {(string)queryObj["Name"]}");
+
+                        Debug.WriteLine("Index:{0}", (uint)queryObj["Index"]);
+
+                        Debug.WriteLine("DiskIndex:{0}", (uint)queryObj["DiskIndex"]);
+
+                        Debug.WriteLine("BootPartition:{0}", (bool)queryObj["BootPartition"]);
+
+                        Debug.WriteLine("Size: {0}", (UInt64)queryObj["Size"]);
+
+                        
+                    }
+
+
+
+
+                }
+                Debug.WriteLine("Sleep for 100ms");
+                Thread.Sleep(500);
+                
+
+
+                
+                string path = $"{openfolder.FileName}\\emmc_dump.img";
+
+                Dispatcher.Invoke(new Action(() =>
+                {
+
+                BackupOutput.Text =
+                    $"Disk selected: {MAINOS_PHYSICAL}\n" +
+                    $"Partitions on disk: {partcount}\n" +
+                    $"Total disk size: {diskSize.ToFileSize()}\n" +
+                    $"Output: {path}\n\n" +
+                    $"This will take a long time depending on Disk size. Please wait and DO NOT remove the disk until finished.";
+
+                }), DispatcherPriority.ContextIdle);
+
+
+
+                var reader = new BinaryReader(new DeviceStream(MAINOS_PHYSICAL));
+                    var writer = new BinaryWriter(new FileStream(path, FileMode.Create));
+                long mb = 1024;
+                    var buffer = new byte[4096];
+                    int count;
+                    int loopcount = 0;
+
+                    try
+                    {
+
+                        while ((count = reader.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                        if (IsCancelBackupClicked == true)
+                        {
+                            e.Cancel = true;
+                            return;
+                        }
+                            writer.Write(buffer, 0, buffer.Length);
+                            if (loopcount % 100 == 0)
+                            {
+                            mb++;
+                            Debug.WriteLine(mb);
+                                writer.Flush();
+                            }
+                            loopcount++;
+
+                        }
+                    }
+                    catch (Exception ee)
+                    {
+                        Debug.WriteLine(ee.Message);
+                        Debug.WriteLine("");
+                        Debug.WriteLine(ee.StackTrace);
+                        Debug.WriteLine("");
+                        Debug.WriteLine(ee.Source);
+                        //Console.ReadLine();
+                    }
+                    reader.Close();
+                    writer.Flush();
+                    writer.Close();
+                
+                BackupProgressBar.IsIndeterminate = false;
+                MessageBox.Show($"Dumped successfully to {path}");
+                BackupOutput.Text += "Finished!";
+
+
+            } else
+            {
+                return;
+            }
 
         }
 
@@ -152,6 +339,7 @@ namespace W10M_Toolbox
                     DeviceSN = devinfo[5].Replace("Serial: ", "").Replace("\r", "");
 
                     DeviceInfotext.Text = info;
+
                 }
                 else
                 {
@@ -162,6 +350,10 @@ namespace W10M_Toolbox
                         if (IsBootedToMSC == true)
                         {
                             DeviceInfotext.Text = "Device is in Mass Storage Mode";
+                            if (DATA_DETAIL == null)
+                            {
+                                MessageBox.Show("Please make sure to have EFIESP and DATA mounted to a Drive Letter, check Disk Management");
+                            }
                         }
                         else
                         {
@@ -206,7 +398,7 @@ namespace W10M_Toolbox
                 HomeProgress.IsIndeterminate = true;
                 IsRebooting = true;
 
-                DeviceInfotext.Text = "Rebooting device to Mass Storage Mode.\n\nYour device will reboot several times, please wait.";
+                DeviceInfotext.Text = "Rebooting device to Mass Storage Mode.\n\nYour device will reboot several times, If your device loads to Mass Storage but no change here, close WPInternals from the taskbar.";
                 await Task.Run(() =>
                 {
                     FlashOutput = DeviceHelper.DeviceHelper.RebootToFlash(DeviceHelper.DeviceHelper.CheckWPIPath());
@@ -284,7 +476,22 @@ namespace W10M_Toolbox
             DownloadUpdate.IsEnabled = true;
             PushUpdate.IsEnabled = true;
 
-            UpdaterBuildOutput.Text = $"Build {selectedbuild} has been selected ";
+            //UpdaterBuildOutput.Text = $"Build {selectedbuild} has been selected ";
+            if (Directory.Exists($".\\AppData\\PhoneUpdates\\{currentbuild}\\{DeviceSN}"))
+            {
+                string[] files = System.IO.Directory.GetFiles($".\\AppData\\PhoneUpdates\\{currentbuild}\\{DeviceSN}");
+                if (files.Length == 0)
+                {
+                    UpdaterBuildOutput.Text = $"Build {selectedbuild} has been selected.\n\n Files have already been downloaded for this device";
+
+                }
+                else
+                {
+                    UpdaterBuildOutput.Text = $"Build {selectedbuild} has been selected.\n\n Files need to be downloaded.";
+
+
+                }
+            }
 
         }
 
@@ -738,8 +945,26 @@ namespace W10M_Toolbox
         /// 
         ///
         ///
+        string EFIESP_DRIVE;
+        string DATA_DRIVE;
+        string MAINOS_DRIVE;
+        string EFIESP_PHYSICAL;
+        string DATA_PHYSICAL;
+        string MAINOS_PHYSICAL;
+        string EFIESP_DETAIL;
+        string DATA_DETAIL;
+        string MAINOS_DETAIL;
+        string EFIESP_FILESYSTEM;
+        string DATA_FILESYSTEM;
+        string MAINOS_FILESYSTEM;
+        ulong EFIESP_SIZE;
+        ulong DATA_SIZE;
+        ulong MAINOS_SIZE;
+        string MAINOS_NAME;
+        string DATA_NAME;
+        string EFIESP_NAME;
         internal string Drive = null;
-        internal string PhysicalDrive = null;
+        public static string PhysicalDrive = null;
         internal string VolumeLabel = null;
         internal IntPtr hVolume = (IntPtr)(-1);
         internal IntPtr hDrive = (IntPtr)(-1);
@@ -750,7 +975,7 @@ namespace W10M_Toolbox
             ManagementObjectCollection coll = new ManagementObjectSearcher("select * from Win32_LogicalDisk").Get();
             foreach (ManagementObject logical in coll)
             {
-                System.Diagnostics.Debug.Print(logical["Name"].ToString());
+                System.Diagnostics.Debug.WriteLine(logical["Name"].ToString());
 
                 string Label = "";
                 foreach (ManagementObject partition in logical.GetRelated("Win32_DiskPartition"))
@@ -759,43 +984,96 @@ namespace W10M_Toolbox
                     {
 
                         if (drive["PNPDeviceID"].ToString().Contains("VEN_QUALCOMM&PROD_MMC_STORAGE", StringComparison.CurrentCulture) ||
-                            drive["PNPDeviceID"].ToString().Contains("VEN_MSFT&PROD_PHONE_MMC_STOR", StringComparison.CurrentCulture))
+                            drive["PNPDeviceID"].ToString().Contains("VEN_MSFT&PROD_PHONE_MMC_STOR", StringComparison.CurrentCulture) || drive["PNPDeviceID"].ToString().Contains("VEN_MSFT&PROD_VIRTUAL_DISK", StringComparison.CurrentCulture))
                         {
-                            Debug.WriteLine("Found WP Device in Mass Storage.\n");
+
                             Label = logical["VolumeName"] == null ? "" : logical["VolumeName"].ToString();
+
+                            if (string.Equals(Label, "EFIESP", StringComparison.CurrentCultureIgnoreCase))
+                            {
+                                EFIESP_SIZE = Convert.ToUInt64(logical.Properties["Size"].Value);
+
+                                EFIESP_DRIVE = logical["Name"].ToString();
+                                EFIESP_PHYSICAL = drive["DeviceID"].ToString();
+                                EFIESP_DETAIL = $"EFIESP FOUND: PhysicalDrive: {EFIESP_PHYSICAL} | Drive: {EFIESP_DRIVE} | Size: {((long)EFIESP_SIZE).ToFileSize()}";
+                                BackupOutput.Text += $"EFIESP FOUND: PhysicalDrive: {EFIESP_PHYSICAL} | Drive: {EFIESP_DRIVE} | Size: {((long)EFIESP_SIZE).ToFileSize()}\n";
+                                Debug.WriteLine($"EFIESP FOUND: PhysicalDrive: {EFIESP_PHYSICAL} | Drive: {EFIESP_DRIVE} | Size: {((long)EFIESP_SIZE).ToFileSize()}");
+                            }
+
+                            if (string.Equals(Label, "Data", StringComparison.CurrentCultureIgnoreCase))
+                            {
+                                DATA_SIZE = Convert.ToUInt64(logical.Properties["Size"].Value);
+                                DATA_DRIVE = logical["Name"].ToString();
+                                DATA_PHYSICAL = drive["DeviceID"].ToString();
+                                DATA_DETAIL = "Data FOUND: PhysicalDrive: {DATA_PHYSICAL} | Drive: {DATA_DRIVE} | | Size: {((long)DATA_SIZE).ToFileSize()}";
+                                BackupOutput.Text += $"Data FOUND: PhysicalDrive: {DATA_PHYSICAL} | Drive: {DATA_DRIVE} | | Size: {((long)DATA_SIZE).ToFileSize()}\n";
+                                Debug.WriteLine($"Data FOUND: PhysicalDrive: {DATA_PHYSICAL} | Drive: {DATA_DRIVE} | | Size: {((long)DATA_SIZE).ToFileSize()}");
+                            }
+
                             if ((Drive == null) || string.Equals(Label, "MainOS", StringComparison.CurrentCultureIgnoreCase)) // Always prefer the MainOS drive-mapping
                             {
+                                MAINOS_SIZE = Convert.ToUInt64(logical.Properties["Size"].Value);
                                 Drive = logical["Name"].ToString();
+                                MainOSDrive = Drive;
                                 PhysicalDrive = drive["DeviceID"].ToString();
+                                MainOSPhysicalDisk = PhysicalDrive;
+                                MAINOS_DRIVE = logical["Name"].ToString();
+                                MAINOS_PHYSICAL = PhysicalDrive;
+                                MAINOS_NAME = Label;
                                 VolumeLabel = Label;
+                                MainOSLabel = VolumeLabel;
                                 IsBootedToMSC = true;
-                                Debug.WriteLine($"{Drive}\n{PhysicalDrive}\n{VolumeLabel}");
+
+
+
+                                MAINOS_DETAIL = $"MAINOS FOUND: PhysicalDrive: {MAINOS_PHYSICAL} | Drive: {MAINOS_DRIVE} | Size: {((long)MAINOS_SIZE).ToFileSize()}";
+                                BackupOutput.Text += $"MAINOS FOUND: PhysicalDrive: {MAINOS_PHYSICAL} | Drive: {MAINOS_DRIVE} | Size: {((long)MAINOS_SIZE).ToFileSize()}\n";
+                                Debug.WriteLine($"MAINOS FOUND: PhysicalDrive: {MAINOS_PHYSICAL} | Drive: {MAINOS_DRIVE} | Size: {((long)MAINOS_SIZE).ToFileSize()}");
                             }
                             if (string.Equals(Label, "MainOS", StringComparison.CurrentCultureIgnoreCase))
                             {
                                 Drive = logical["Name"].ToString();
+                                MainOSDrive = Drive;
                                 PhysicalDrive = drive["DeviceID"].ToString();
+                                MainOSPhysicalDisk = PhysicalDrive;
+                                MAINOS_DRIVE = logical["Name"].ToString();
+                                MAINOS_PHYSICAL = PhysicalDrive;
+                                MAINOS_NAME = Label;
                                 VolumeLabel = Label;
+                                MainOSLabel = VolumeLabel;
                                 IsBootedToMSC = true;
-                                Debug.WriteLine($"{Drive}\n{PhysicalDrive}\n{VolumeLabel}");
+                                MAINOS_DETAIL = $"MAINOS FOUND: PhysicalDrive: {MAINOS_PHYSICAL} | Drive: {MAINOS_DRIVE} | Size: {((long)MAINOS_SIZE).ToFileSize()}";
+                                // BackupOutput.Text += $"MAINOS FOUND: PhysicalDrive: {MAINOS_PHYSICAL} | Drive: {MAINOS_DRIVE} | Size: {((long)MAINOS_SIZE).ToFileSize()}\n";
+                                Debug.WriteLine($"MAINOS FOUND: PhysicalDrive: {MAINOS_PHYSICAL} | Drive: {MAINOS_DRIVE} | Size: {((long)MAINOS_SIZE).ToFileSize()}");
                                 break;
                             }
                         }
                     }
+
                     if (string.Equals(Label, "MainOS", StringComparison.CurrentCultureIgnoreCase))
                     {
                         Drive = logical["Name"].ToString();
-
-                        //PhysicalDrive = drive["DeviceID"].ToString();
+                        MainOSDrive = Drive;
+                        // PhysicalDrive = drive["DeviceID"].ToString();
+                        MAINOS_DRIVE = logical["Name"].ToString();
+                        // MAINOS_PHYSICAL = PhysicalDrive;
+                        MAINOS_NAME = Label;
+                        MainOSPhysicalDisk = "N/A";
                         VolumeLabel = Label;
+                        MainOSLabel = VolumeLabel;
                         IsBootedToMSC = true;
-                        Debug.WriteLine($"{Drive}\n{VolumeLabel}");
+                        // Debug.WriteLine($"{Drive}\n{VolumeLabel}");
                         break;
                     }
+
                 }
             }
         }
 
+
+        /// <summary>
+        /// Mass Storage config/settings function (Registry Backup and Editing)
+        /// </summary>
         public void MassStorage()
         {
             try
@@ -868,6 +1146,9 @@ namespace W10M_Toolbox
                     RegistryKey LocalCrashDumpsSetting = registry2.CreateSubKey(@"Microsoft\Windows\Windows Error Reporting\LocalDumps", RegistryKeyPermissionCheck.ReadSubTree);
                     RegistryKey WindowsFirewallSetting = registry.CreateSubKey(@"ControlSet001\Services\MpsSvc", RegistryKeyPermissionCheck.ReadSubTree);
                     RegistryKey PagingSettings = registry.CreateSubKey(@"ControlSet001\Control\Session Manager\Memory Management", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey CamSoundSetting = registry2.CreateSubKey(@"Microsoft\Photos\OEM", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey WifiSoundSettingon = registry2.CreateSubKey(@"Microsoft\EventSounds\Sounds\WiFiConnected", RegistryKeyPermissionCheck.ReadSubTree);
+                    RegistryKey WifiSoundSettingoff = registry2.CreateSubKey(@"Microsoft\EventSounds\Sounds\WiFiDisonnected", RegistryKeyPermissionCheck.ReadSubTree);
                     if (DeviceBranding != null)
                     {
                         modelName = DeviceBranding.GetValue("PhoneModelName").ToString();
@@ -1067,14 +1348,7 @@ namespace W10M_Toolbox
 
                         }
 
-                        // Destination :- HKEY_LOCAL_MACHINE \ SYSTEM \ CurrentControlSet \ Control \ Session Manager \ Memory Management/ Pagingfiles
 
-                        // Then you can change the value  according to what amount of paging files you wish to have.
-
-                        //256mb - Input 256 256
-                        //512mb - Input 512 512
-                        //1GB - Input 1024 1024
-                        //2GB - Input 1980 1980
                     }
                     else
                     {
@@ -1091,6 +1365,31 @@ namespace W10M_Toolbox
                     {
                         FlightSigningCheck.IsChecked = true;
                     }
+
+                    // Sound Settings
+                    if (CamSoundSetting != null)
+                    {
+                        if (WifiSoundSettingon != null)
+                        {
+
+                            if (CamSoundSetting.GetValue("ShutterSoundUnlocked").ToString() != "1")
+                            {
+                                if (WifiSoundSettingon.GetValue("Disabled").ToString() != "0")
+                                {
+                                    ExtraSoundSetting.IsChecked = false;
+                                }
+                            }
+                            else
+                            {
+
+                                ExtraSoundSetting.IsChecked = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ExtraSoundSetting.IsChecked = false;
+                    }
                 }
 
             }
@@ -1102,7 +1401,267 @@ namespace W10M_Toolbox
 
         }
 
+        // EFIESP_PHYSICAL, 0
+        // EFIESP_NAME, 1
+        // EFIESP_DRIVE, 2
+        // EFIESP_FILESYSTEM, 3
+        // DATA_PHYSICAL, 4
+        // DATA_NAME, 5
+        // DATA_DRIVE, 6
+        // DATA_FILESYSTEM, 7
+        // MAINOS_PHYSICAL, 8
+        // MAINOS_NAME, 9
+        // MAINOS_DRIVE, 10
+        // MAINOS_FILESYSTEM 11
+        List<string> foundDriveLetters;
+        BackgroundWorker worker2 = new BackgroundWorker();
+        private string[] CheckForWPDisks(string physicaldrive, string mainosdrive, string mainosname)
+        {
+            foundDriveLetters = null;
+
+            string[] foundPartitions = WPDiskChecker.CheckForDiskInfo();
+            if (foundPartitions == null)
+            {
+                Debug.WriteLine("No Partitions Detected");
+            }
+            else
+            {
+                string EFIESP_DRIVE = foundPartitions[0];
+                string DATA_DRIVE = foundPartitions[1];
+                string MAINOS_DRIVE = foundPartitions[2];
+                string EFIESP_PHYSICAL = foundPartitions[3];
+                string DATA_PHYSICAL = foundPartitions[4];
+                string MAINOS_PHYSICAL = foundPartitions[5];
+                string EFIESP_NAME = foundPartitions[6];
+                string DATA_NAME = foundPartitions[7];
+                string MAINOS_NAME = foundPartitions[8];
+                string EFIESP_FILESYSTEM = foundPartitions[9];
+                string DATA_FILESYSTEM = foundPartitions[10];
+                string MAINOS_FILESYSTEM = foundPartitions[11];
+                if (MAINOS_PHYSICAL != MainOSPhysicalDisk)
+                {
+                    MessageBox.Show("PhysicalDrive doesn't match already found PhysicalDrive");
+                    return null;
+                }
+                else
+                {
+                    if (MAINOS_DRIVE != MainOSDrive)
+                    {
+                        MessageBox.Show("Found MainOS Drive doesn't match already detected MainOS Info");
+                        return null;
+                    }
+                    else
+                    {
+                        foundDriveLetters.Add(EFIESP_DRIVE);
+                        foundDriveLetters.Add(MAINOS_DRIVE);
+                        foundDriveLetters.Add(DATA_DRIVE);
+
+                    }
+                }
+            }
+            return foundDriveLetters.ToArray();
+        }
         #endregion
+
+        private async void StartBackupBtn_Click(object sender, RoutedEventArgs e)
+        {
+
+
+            if (worker.IsBusy == true)
+            {
+                MessageBox.Show("Please try again later, Background Tasks are still running");
+            } else
+            {
+                BackupProgressBar.IsIndeterminate = true;
+                DisableUIButtons();
+                worker2.RunWorkerAsync();
+            }
+
+
+            
+           
+        }
+
+        private void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            if (IsCancelBackupClicked != true)
+            {
+                MessageBox.Show("Successfully dumped partitions");
+                BackupOutput.Text = "Finished.\n\n" +
+                    "You can now close this app/Safely remove your device as usual";
+            }
+        }
+
+        private void Worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            BackupOutput.Text = e.UserState as string;
+        }
+        Process dmainos = new Process();
+        Process ddata = new Process();
+        Process defi = new Process();
+        private void Worker_DoWork(object sender, DoWorkEventArgs e)
+        {
+
+
+            string outputfolder = ChosenDumpPath;
+            try
+            {
+
+
+                if (IsMainOSSelected == true)
+                {
+
+                    Dispatcher.Invoke(new Action(() =>
+                    {
+                        BackupOutput.Text = 
+                        $"Starting MainOS Dump:\n\n" +
+                        $"Output: {outputfolder}\\MainOS.img\n" +
+                        $"Partition Size: {((long)MAINOS_SIZE).ToFileSize()}\n" +
+                        $"\nThis will take time, Please Wait";
+                        DisableUIButtons();
+                        BackupProgressBar.IsIndeterminate = true;
+                    }), DispatcherPriority.ContextIdle);
+
+                    Debug.WriteLine("Starting MAINOS Dump");
+
+
+                    dmainos.StartInfo.FileName = @".\\AppData\\bin\\dd.exe";
+                    dmainos.StartInfo.Arguments = $@" if=\\.\{MAINOS_DRIVE.ToLower()}" + $" of=\"{outputfolder}\\MainOS.img\" bs=1M --progress";
+                    Debug.WriteLine($".\\AppData\\bin\\dd.exe" + $@" if=\\.\{MAINOS_DRIVE.ToLower()}" + $" of=\"{outputfolder}\\MainOS.img\" bs=1M --progress");
+                  /*  dmainos.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    dmainos.StartInfo.CreateNoWindow = false;
+                    dmainos.StartInfo.RedirectStandardOutput = false;
+                    dmainos.OutputDataReceived += new DataReceivedEventHandler(Dmainos_OutputDataReceived);
+                    dmainos.StartInfo.RedirectStandardInput = false;
+                    dmainos.ErrorDataReceived += Dmainos_OutputDataReceived;
+                    dmainos.StartInfo.RedirectStandardError = false; */
+                    dmainos.Start();
+                    
+
+
+                    while(dmainos.HasExited != true)
+                    {
+                        if (IsCancelBackupClicked == true)
+                        {
+                            e.Cancel = true;
+                            dmainos.Close();
+                            dmainos.Kill();
+                           
+                        }
+                    }
+
+                    dmainos.WaitForExit();
+
+                  
+                    dmainos.Close();
+                   
+
+                }
+                
+
+
+
+                if (IsDataSelected == true)
+                {
+                    Dispatcher.Invoke(new Action(() =>
+                    {
+                        BackupOutput.Text =
+                        $"Starting Data Dump:\n\n" +
+                        $"Output: {outputfolder}\\Data.img\n" +
+                        $"Partition Size: {((long)DATA_SIZE).ToFileSize()}\n" +
+                        $"\nThis will take time, Please Wait";
+                        DisableUIButtons();
+                        BackupProgressBar.IsIndeterminate = true;
+                    }), DispatcherPriority.ContextIdle);
+
+                    Debug.WriteLine("Starting DATA Dump");
+
+
+                    ddata.StartInfo.FileName = @".\AppData\bin\dd.exe";
+                    ddata.StartInfo.Arguments = $@" if=\\.\{DATA_DRIVE.ToLower()}" + $" of=\"{outputfolder}\\Data.img\" bs=1M --progress";
+                    Debug.WriteLine(@$"Launching dd.exe  if=\\.\{DATA_DRIVE.ToLower()} of={ outputfolder}\Data.img");
+                    /*ddata.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    ddata.StartInfo.CreateNoWindow = false;
+                    ddata.StartInfo.RedirectStandardOutput = false; */
+                    ddata.Start();
+
+                    while (ddata.HasExited != true)
+                    {
+                        if (IsCancelBackupClicked == true)
+                        {
+                            e.Cancel = true;
+                            ddata.Kill();
+                            ddata.Close();
+                        }
+                    }
+
+                    ddata.WaitForExit();
+
+
+                }
+
+
+                if (IsEFISelected == true)
+                {
+                    Dispatcher.Invoke(new Action(() =>
+                    {
+                        BackupOutput.Text =
+                        $"Starting EFIESP Dump:\n\n" +
+                        $"Output: {outputfolder}\\EFIESP.img\n" +
+                        $"Partition Size: {((long)EFIESP_SIZE).ToFileSize()}\n" +
+                        $"\nThis will take time, Please Wait";
+                        DisableUIButtons();
+                        BackupProgressBar.IsIndeterminate = true;
+                    }), DispatcherPriority.ContextIdle);
+
+                    Debug.WriteLine("Starting EFIESP Dump");
+
+
+                    defi.StartInfo.FileName = @".\AppData\bin\dd.exe";
+                    defi.StartInfo.Arguments = $@" if=\\.\{EFIESP_DRIVE.ToLower()}" + $" of=\"{outputfolder}\\EFIESP.img\" bs=1M --progress";
+                    Debug.WriteLine(@$"Launching dd.exe if=\\.\{EFIESP_DRIVE.ToLower()} of={ outputfolder}\EFIESP.img");
+                    //defi.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                   // defi.StartInfo.CreateNoWindow = false;
+                    defi.Start();
+
+
+                    while (defi.HasExited != true)
+                    {
+                        if (IsCancelBackupClicked == true)
+                        {
+                            e.Cancel = true;
+                            defi.Kill();
+                            defi.Close();
+                        }
+                    }
+                    defi.WaitForExit();
+
+                }
+
+                Dispatcher.Invoke(new Action(() =>
+                {
+                    EnableUIButtons();
+                    BackupProgressBar.IsIndeterminate = false;
+                }), DispatcherPriority.ContextIdle);
+
+            }
+            catch (Exception ex)
+            {
+                e.Cancel = true;
+                dmainos.Kill();
+                ddata.Kill();
+                defi.Kill();
+            }
+
+
+
+        }
+
+        private void Automator_StandardInputRead(object sender, ConsoleInputReadEventArgs e)
+        {
+            string result = e.Input;
+            BackupOutput.Text = result;
+        }
 
         private void CheckBCD()
         {
@@ -1354,6 +1913,23 @@ namespace W10M_Toolbox
             {
                 ModifyBCD("off");
             }
+            RegistryKey CamSoundSetting = registry2.CreateSubKey(@"Microsoft\Photos\OEM", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            RegistryKey WifiSoundSettingon = registry2.CreateSubKey(@"Microsoft\EventSounds\Sounds\WiFiConnected", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            RegistryKey WifiSoundSettingoff = registry2.CreateSubKey(@"Microsoft\EventSounds\Sounds\WiFiDisonnected", RegistryKeyPermissionCheck.ReadWriteSubTree);
+            if (ExtraSoundSetting.IsChecked == true)
+            {
+                CamSoundSetting.SetValue("ShutterSoundUnlocked", 1, RegistryValueKind.DWord);
+                WifiSoundSettingon.SetValue("Disabled", 0, RegistryValueKind.DWord);
+                WifiSoundSettingoff.SetValue("Disabled", 0, RegistryValueKind.DWord);
+            }
+            else
+            {
+                CamSoundSetting.SetValue("ShutterSoundUnlocked", 0, RegistryValueKind.DWord);
+                WifiSoundSettingon.SetValue("Disabled", 1, RegistryValueKind.DWord);
+                WifiSoundSettingoff.SetValue("Disabled", 1, RegistryValueKind.DWord);
+            }
+
+
 
             Thread.Sleep(1000);
             BasicTweakPageHeader.Text = "Saved settings to device";
@@ -1369,6 +1945,17 @@ namespace W10M_Toolbox
                 MessageBox.Show("Make sure to unload your Phone Registry before closing!");
                 e.Cancel = true;
             }
+            /*
+            if (worker2.IsBusy)
+            {
+                MessageBox.Show("Full Disk Backup is still running");
+                e.Cancel = true;
+            }
+            if (worker.IsBusy)
+            {
+                MessageBox.Show("Partition Backup is still running");
+                e.Cancel = true;
+            } */
         }
 
         private void MetroWindow_Closed(object sender, EventArgs e)
@@ -1381,6 +1968,436 @@ namespace W10M_Toolbox
 
 
 
+        string FFUFilePath;
+        private void FFULoadBtn_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFFU = new OpenFileDialog();
+            openFFU.Filter = "Full Flash Update File (*.ffu)|*.ffu";
+            openFFU.RestoreDirectory = true;
+            openFFU.Title = "Load Windows Phone FFU File";
+            openFFU.DefaultExt = "ffu";
+            openFFU.ShowDialog();
+            if (openFFU == null)
+            {
+
+            }
+            else
+            {
+                FFUFilePath = openFFU.FileName;
+                LoadFFU(openFFU.FileName);
+            }
+
+        }
+
+        private void LoadFFU(string ffufile)
+        {
+            var stream = ffufile;
+            var selectedFFU = new FfuFile(stream);
+            ReadFFU(selectedFFU);
+        }
+        string FFUManifestData;
+        FfuFile file;
+        private void ReadFFU(FfuFile ffuFile)
+        {
+            FFUManifestData = String.Empty;
+            file = ffuFile;
+            //Console.WriteLine("FFU input file: " + input);
+            FFUInfoOutput.Text = " Catalog Size: " + file.SignedCatalog.Length;
+            FFUInfoOutput.Text += "\n Chunk Size In Kb: " + file.ChunkSizeInKb;
+            FFUInfoOutput.Text += "\n Hash Algorithm Type: " + file.HashAlgorithmType;
+            FFUInfoOutput.Text += "\n Hash Table Size:" + file.HashTable.Length;
+            FFUInfoOutput.Text += "\n Platform Id: " + file.PlatformId;
+            FFUInfoOutput.Text += "\n FFU Version: " + file.Version;
+            FFUInfoOutput.Text += "\n Storage Version: " + file.StoreVersion;
+            FFUInfoOutput.Text += "\n Stores Count: " + file.Stores.Count;
+            FFUInfoOutput.Text += "\n Block Size In Bytes: " + file.BlockSizeInBytes;
+            FFUInfoOutput.Text += "\n First Store Payload Size: " + file.FirstStore.PayloadSizeInBytes;
+            FFUInfoOutput.Text += "\n First Store Block Count: " + file.FirstStore.BlockCount;
+            FFUInfoOutput.Text += "\n First Store Max Block Index: " + file.FirstStore.MaxBlockIndex;
+            FFUInfoOutput.Text += "\n First Store Target Size In Bytes: " + file.FirstStore.TargetSizeInBytes;
+            FFUManifestOutput.Text = file.Manifest;
+            FFUManifestData = file.Manifest;
+            if (FFUManifestData.Contains("Windows Phone 8"))
+            {
+
+                SaveFFUAsVhdx.IsEnabled = true;
+            }
+            else
+            {
+                FFUInfoOutput.Text += $"\n\n Cannot convert W10M images to VHDX yet,\n Please use WPInternals to dump";
+                SaveFFUAsVhdx.IsEnabled = false;
+            }
+
+            SaveFFUManifestBtn.IsEnabled = true;
+
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void SaveFFUAsVhdx_Click(object sender, RoutedEventArgs e)
+        {
+
+            try
+            {
+
+                //#########//
+                Stream stream;
+                SaveFileDialog saveFile = new SaveFileDialog();
+                saveFile.Filter = "VHDX Files (*.vhdx)|*.vhdx";
+                saveFile.RestoreDirectory = true;
+                saveFile.DefaultExt = ".vhdx";
+                Nullable<bool> result = saveFile.ShowDialog();
+                if (result == true)
+                {
+
+                    if (saveFile != null)
+                    {
+                        if (file == null)
+                        {
+                            throw new NullReferenceException(nameof(file));
+                        }
+                        int percent = 0;
+                        file.FirstStore.ProgressChanged += (sender, e) =>
+                        {
+                            var block = (FfuFileBlock)e.UserState;
+                            if (e.ProgressPercentage != percent)
+                            {
+                                percent = e.ProgressPercentage;
+                                if ((percent % 1) == 0)
+                                {
+                                    Dispatcher.Invoke(new Action(() =>
+                                    {
+                                        FFUProgress.Value = percent;
+                                    }), DispatcherPriority.ContextIdle);
+
+                                }
+                                else
+                                {
+                                    //FFUInfoOutput.Text = ".";
+                                }
+                            }
+                        };
+
+                        string ext = System.IO.Path.GetExtension(saveFile.FileName).ToLowerInvariant();
+                        if (ext == ".img")
+                        {
+                            // file.FirstStore.WriteRaw(output);
+                        }
+                        else
+                        {
+
+                            file.FirstStore.WriteVirtualDisk(saveFile.FileName);
+
+                        }
+                        Console.WriteLine("100%");
+                        MessageBox.Show(saveFile.FileName + " file was written successfully.");
+                    }
+                }
+                else
+
+                {
+
+                }
+            }
+            catch (IOException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                MessageBox.Show($"An error occured.\n\nIs the FFU W10M, Corrupt or Custom?\n\n Only WP8 Images wre supported\n\n\n{ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Onn Click, Ask save location and call process to start
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SaveFFUAsRaw_Click(object sender, RoutedEventArgs e)
+        {
+            SaveFileDialog saveFile = new SaveFileDialog();
+            saveFile.Filter = "IMG Files (*.img)|*.img";
+            saveFile.RestoreDirectory = true;
+            saveFile.DefaultExt = ".img";
+            Nullable<bool> result = saveFile.ShowDialog();
+            if (result == true)
+            {
+                SaveFFUAsRaw(FFUFilePath, saveFile.FileName);
+            }
+
+
+        }
+
+
+        /// <summary>
+        /// Save FFU as RAW Image, Functions for reading Security Header, Image Header and Store Header are provided by "FFUConvert" on Github
+        /// </summary>
+        /// <param name="FFUfile"></param>
+        /// <param name="output"></param>
+        public void SaveFFUAsRaw(string FFUfile, string output)
+        {
+            var ffupath = FFUfile;
+
+            var imgpath = output;
+
+            Debug.WriteLine("Input File: {0}", ffupath);
+            Debug.WriteLine("Output File: {0}", imgpath);
+
+            if (File.Exists(imgpath))
+                File.Delete(imgpath);
+
+            using (var ffufp = new BinaryReader(File.OpenRead(ffupath)))
+            using (var imgfp = new BinaryWriter(File.OpenWrite(imgpath)))
+            using (
+              var logfp = new StreamWriter(File.Open("sharpffu2img.log", FileMode.Append, FileAccess.Write),
+                Encoding.Default))
+            {
+                var ffuSecHeader = FFUImageHelper.ReadSecurityHeader(ffufp, logfp);
+
+                FFUImageHelper.ReadImageHeader(ffufp, ffuSecHeader, logfp);
+
+                var ffuStoreHeader = FFUImageHelper.ReadStoreHeader(ffufp, logfp);
+
+                Debug.WriteLine("Block data entries begin: {0:x8}", ffufp.BaseStream.Position);
+                logfp.WriteLine("Block data entries begin: {0:x8}", ffufp.BaseStream.Position);
+
+                Debug.WriteLine("Block data entries end: {0:x8}",
+                  ffufp.BaseStream.Position + ffuStoreHeader.dwWriteDescriptorLength);
+                logfp.WriteLine("Block data entries end: {0:x8}",
+                  ffufp.BaseStream.Position + ffuStoreHeader.dwWriteDescriptorLength);
+
+                var blockdataaddress = ffufp.BaseStream.Position + ffuStoreHeader.dwWriteDescriptorLength;
+                blockdataaddress = blockdataaddress + (ffuSecHeader.dwChunkSizeInKb * 1024) -
+                                   (blockdataaddress % ((int)(ffuSecHeader.dwChunkSizeInKb * 1024)));
+
+                logfp.WriteLine("Block data chunks begin: {0:x8}", blockdataaddress);
+                Debug.WriteLine("Block data chunks begin: {0:x8}", blockdataaddress);
+
+                var iBlock = 0u;
+                var oldblockcount = 0u;
+
+                while (iBlock < ffuStoreHeader.dwWriteDescriptorCount)
+                {
+                    Dispatcher.Invoke(new Action(() =>
+                    {
+                        int ii = (int)(iBlock * ffuStoreHeader.dwBlockSizeInBytes / 1024);
+                        FFUProgress.Value = ii;
+                    }), DispatcherPriority.ContextIdle);
+
+
+                    Console.Write("\r{0} blocks, {1}KB written", iBlock, (iBlock * ffuStoreHeader.dwBlockSizeInBytes) / 1024);
+                    logfp.WriteLine("Block data entry from: {0:x8}", ffufp.BaseStream.Position);
+
+                    var currentBlockDataEntry = FFUImageHelper.ReadBlockDataEntry(ffufp);
+
+                    if (Math.Abs(currentBlockDataEntry.dwBlockCount - oldblockcount) > 1)
+                        Console.Write("\r{0} blocks, {1}KB written - Delay expected. Please wait.", iBlock,
+                          (iBlock * ffuStoreHeader.dwBlockSizeInBytes) / 1024);
+
+                    oldblockcount = currentBlockDataEntry.dwBlockCount;
+
+                    FFUImageHelper.LogPropertyValues(currentBlockDataEntry, logfp);
+
+                    var curraddress = ffufp.BaseStream.Position;
+
+                    ffufp.BaseStream.Seek(blockdataaddress + (iBlock * ffuStoreHeader.dwBlockSizeInBytes), SeekOrigin.Begin);
+                    imgfp.BaseStream.Seek(
+                      (Convert.ToInt64(currentBlockDataEntry.dwBlockCount) * Convert.ToInt64(ffuStoreHeader.dwBlockSizeInBytes)),
+                      SeekOrigin.Begin);
+                    imgfp.Write(ffufp.ReadBytes((int)ffuStoreHeader.dwBlockSizeInBytes));
+
+                    ffufp.BaseStream.Seek(curraddress, SeekOrigin.Begin);
+
+                    iBlock = iBlock + 1;
+                }
+
+                Console.Write("\nWrite complete.");
+                MessageBox.Show(ffupath + " was written successfully.");
+            }
+
+        }
+
+
+        /// <summary>
+        /// When Clicked, Save the Manifest data to plain text file
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SaveFFUManifestBtn_Click(object sender, RoutedEventArgs e)
+        {
+            SaveFileDialog saveFile = new SaveFileDialog();
+            saveFile.Filter = "CSV Files (*.csv)|*.csv";
+            saveFile.RestoreDirectory = true;
+            saveFile.DefaultExt = ".csv";
+            Nullable<bool> result = saveFile.ShowDialog();
+            if (result == true)
+            {
+                File.WriteAllText(saveFile.FileName, FFUManifestData);
+                MessageBox.Show($"FFU Manifest saved to \"{saveFile.FileName}\"");
+            }
+
+
+        }
+
+
+        bool IsMainOSSelected;
+        bool IsDataSelected;
+        bool IsEFISelected;
+        string ChosenDumpPath;
+        // https://github.com/simonkaps/ddresize/blob/master/Program.cs
+        private async void PartitionsBackupBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (IsEFISelected != true && IsMainOSSelected != true && IsDataSelected != true)
+            {
+                MessageBox.Show("No Partitions selected");
+            }
+            else
+            {
+                BackupProgressBar.IsIndeterminate = true;
+                BackupProgressBar.IsEnabled = true;
+                var openfolder = new CommonOpenFileDialog();
+                openfolder.Title = "Select output for saved partitions";
+                openfolder.IsFolderPicker = true;
+                openfolder.InitialDirectory = ".\\";
+                openfolder.EnsurePathExists = true;
+
+                if (openfolder.ShowDialog() == CommonFileDialogResult.Ok)
+                {
+                    ChosenDumpPath = openfolder.FileName;
+                    BackupOutput.Text = "Starting Partition Dumping.. Please Wait";
+                    DisableUIButtons();
+                    worker.RunWorkerAsync();
+                    BackupProgressBar.IsIndeterminate = false;
+                }
+
+            }
+
+        }
+
+
+
+
+
+        private void Dmainos_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+        {
+            Debug.WriteLine(e.Data);
+
+        }
+        string backupmessage;
+        private void Dmainos_OutputDataReceived(object sender, DataReceivedEventArgs e)
+        {
+
+        }
+
+        private void PartData_Checked(object sender, RoutedEventArgs e)
+        {
+            
+                if (DATA_DRIVE == null)
+                {
+                    MessageBox.Show("Please assign Data a Drive Letter first");
+                    IsDataSelected = false;
+                    PartData.IsChecked = false;
+                }
+                else
+                {
+                    IsDataSelected = true;
+                    Debug.WriteLine("Data Partition Selected");
+                }
+
+           
+        }
+
+        private void PartMainOS_Checked(object sender, RoutedEventArgs e)
+        {
+            if (MAINOS_DRIVE == null)
+            {
+                MessageBox.Show("Please assign MainOS a Drive Letter first");
+                IsMainOSSelected = false;
+                PartMainOS.IsChecked = false;
+                Debug.WriteLine("MainOS Partition Deselected");
+            }
+            else
+            {
+                IsMainOSSelected = true;
+                Debug.WriteLine("MainOS Partition Selected");
+               
+            }
+        }
+
+        private void PartEFIESP_Checked(object sender, RoutedEventArgs e)
+        {
+           
+                if (EFIESP_DRIVE == null)
+                {
+                    MessageBox.Show("Please assign EFIESP a Drive Letter first");
+                    IsEFISelected = false;
+                    PartEFIESP.IsChecked = false;
+                }
+                else
+                {
+                    IsEFISelected = true;
+                    Debug.WriteLine("EFIESP Partition Selected");
+                }
+
+        }
+
+
+
+        private void StartWholeDiskDump(string PhysicalDisk, string output)
+        {
+            long diskSize = DiskInfo.GetPhysDiskSize(PhysicalDisk);
+            Debug.WriteLine($"Selected Disk: {PhysicalDisk}");
+            Debug.WriteLine($"Disk Size: {diskSize.ToFileSize().ToString()}");
+            //Debug.WriteLine($"No. of Partitions = {partcount}");
+            Debug.WriteLine("");
+            Debug.WriteLine($"Selected Output: {output}");
+
+            var reader = new BinaryReader(new DeviceStream(PhysicalDisk));
+
+            var writer = new BinaryWriter(new FileStream(output, FileMode.Create));
+            BackupProgressBar.Maximum = diskSize;
+            var buffer = new byte[4096];
+
+            int count;
+            int loopcount = 0;
+            try
+            {
+
+                //diskStream.CopyTo(fileStream);
+                System.Console.WriteLine($"Writing Data to file, this will take several minutes");
+                while ((count = reader.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    writer.Write(buffer, 0, buffer.Length);
+                    // System.Console.Write('.');
+                    if (loopcount % 100 == 0)
+                    {
+                        BackupProgressBar.Value = (long)count;
+
+
+                        // writer.Flush();
+                    }
+                    loopcount++;
+
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);
+                Debug.WriteLine("");
+                Debug.WriteLine(e.StackTrace);
+                Debug.WriteLine("");
+                Debug.WriteLine(e.Source);
+                MessageBox.Show($"ERROR: Issue while writing to file {output}\n\n" +
+                    $"{e.Message}\n\n{e.StackTrace}\n\n{e.Source}");
+            }
+            reader.Close();
+            writer.Flush();
+            writer.Close();
+            Debug.WriteLine("Finished");
+
+        }
 
 
 
@@ -1393,13 +2410,40 @@ namespace W10M_Toolbox
 
 
 
+        /// <summary>
+        /// Enable UI Elements for Mass Storage Mode
+        /// </summary>
+        private void DisableUIButtons()
+        {
+            StartBackupBtn.IsEnabled = false;
+            PartMainOS.IsEnabled = false;
+            PartData.IsEnabled = false;
+            PartEFIESP.IsEnabled = false;
+            PartitionsBackupBtn.IsEnabled = false;
+            OpenDiskMgmt.IsEnabled = false;
+            HelpBtn.IsEnabled = false;
+        }
+
+        private void EnableUIButtons()
+        {
+            StartBackupBtn.IsEnabled = true;
+            PartMainOS.IsEnabled = true;
+            PartData.IsEnabled = true;
+            PartEFIESP.IsEnabled = true;
+            PartitionsBackupBtn.IsEnabled = true;
+            OpenDiskMgmt.IsEnabled = true;
+            HelpBtn.IsEnabled = true;
+        }
 
 
 
 
 
 
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="e"></param>
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -1448,9 +2492,217 @@ namespace W10M_Toolbox
             CheckForDevice();
         }
 
+        private void HelpBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("To backup your entire Phone Storage to file, make sure you are connected in Mass Storage Mode.\n\n\nTo backup individual partitions, select the ones you want.\nMake sure the partitions ARE mounted in Disk Management");
+        }
+
+        private void OpenDiskMgmt_Click(object sender, RoutedEventArgs e)
+        {
+            Process diskmgmt = new Process();
+
+            diskmgmt.StartInfo.FileName = @"cmd.exe";
+            diskmgmt.StartInfo.Arguments = @$"/C diskmgmt.msc";
+            diskmgmt.StartInfo.CreateNoWindow = true;
+            diskmgmt.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            Debug.WriteLine(@$"Opening Windows Disk Management");
+            diskmgmt.Start();
+
+        }
+        public bool IsCancelBackupClicked = false;
+        private void CancelBackup_Click(object sender, RoutedEventArgs e)
+        {
+            IsCancelBackupClicked = true;
+            if (worker.IsBusy)
+            {
+                worker.CancelAsync();
+                worker.Dispose();
+                try
+                {
+                    dmainos.Kill();
+                    dmainos.Dispose();
+                }
+                catch (InvalidOperationException iv)
+                {
+                    Debug.WriteLine("MAINOS Dump not started");
+                }
+
+                try
+                {
+
+                    ddata.Kill();
+                    ddata.Dispose();
+                }
+                catch (InvalidOperationException iv)
+                {
+                    Debug.WriteLine("DATA Dump not started");
+                }
+
+                try
+                {
+                    defi.Kill();
+                    defi.Dispose();
+                }
+                catch (InvalidOperationException iv)
+                {
+                    Debug.WriteLine("EFIESP Dump not started");
+                }
 
 
+                
+            }
+            if (worker2.IsBusy)
+            {
+                worker2.CancelAsync();
+                worker2.Dispose();
+            }
+
+            Dispatcher.Invoke(new Action(() =>
+            {
+                EnableUIButtons();
+                BackupProgressBar.IsIndeterminate = false;
+            }), DispatcherPriority.ContextIdle);
+
+
+
+            MessageBox.Show("Process has been cancelled");
+            IsCancelBackupClicked = false;
+        }
+
+
+
+
+
+        public class ConsoleInputReadEventArgs : EventArgs
+        {
+            public ConsoleInputReadEventArgs(string input)
+            {
+                this.Input = input;
+            }
+
+            public string Input { get; private set; }
+        }
+
+        public interface IConsoleAutomator
+        {
+            StreamWriter StandardInput { get; }
+
+            event EventHandler<ConsoleInputReadEventArgs> StandardInputRead;
+        }
+
+        public abstract class ConsoleAutomatorBase : IConsoleAutomator
+        {
+            protected readonly StringBuilder inputAccumulator = new StringBuilder();
+
+            protected readonly byte[] buffer = new byte[256];
+
+            protected volatile bool stopAutomation;
+
+            public StreamWriter StandardInput { get; protected set; }
+
+            protected StreamReader StandardOutput { get; set; }
+
+            protected StreamReader StandardError { get; set; }
+
+            public event EventHandler<ConsoleInputReadEventArgs> StandardInputRead;
+
+            protected void BeginReadAsync()
+            {
+                if (!this.stopAutomation)
+                {
+                    this.StandardOutput.BaseStream.BeginRead(this.buffer, 0, this.buffer.Length, this.ReadHappened, null);
+                }
+            }
+
+            protected virtual void OnAutomationStopped()
+            {
+                this.stopAutomation = true;
+                this.StandardOutput.DiscardBufferedData();
+            }
+
+            private void ReadHappened(IAsyncResult asyncResult)
+            {
+                var bytesRead = this.StandardOutput.BaseStream.EndRead(asyncResult);
+                if (bytesRead == 0)
+                {
+                    this.OnAutomationStopped();
+                    return;
+                }
+
+                var input = this.StandardOutput.CurrentEncoding.GetString(this.buffer, 0, bytesRead);
+                this.inputAccumulator.Append(input);
+
+                if (bytesRead < this.buffer.Length)
+                {
+                    this.OnInputRead(this.inputAccumulator.ToString());
+                }
+
+                this.BeginReadAsync();
+            }
+
+            private void OnInputRead(string input)
+            {
+                var handler = this.StandardInputRead;
+                if (handler == null)
+                {
+                    return;
+                }
+
+                handler(this, new ConsoleInputReadEventArgs(input));
+                this.inputAccumulator.Clear();
+            }
+        }
+
+        public class ConsoleAutomator : ConsoleAutomatorBase, IConsoleAutomator
+        {
+            public ConsoleAutomator(StreamWriter standardInput, StreamReader standardOutput)
+            {
+                this.StandardInput = standardInput;
+                this.StandardOutput = standardOutput;
+            }
+
+            public void StartAutomate()
+            {
+                this.stopAutomation = false;
+                this.BeginReadAsync();
+            }
+
+            public void StopAutomation()
+            {
+                this.OnAutomationStopped();
+            }
+        }
+
+        private void PartEFIESP_Unchecked(object sender, RoutedEventArgs e)
+        {
+            IsEFISelected = false;
+        }
+
+        private void PartMainOS_Unchecked(object sender, RoutedEventArgs e)
+        {
+            IsMainOSSelected = false;
+        }
+
+        private void PartData_Unchecked(object sender, RoutedEventArgs e)
+        {
+            IsDataSelected = false;
+        }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     /// <summary>
@@ -1512,5 +2764,62 @@ namespace W10M_Toolbox
     }
 
 
+    public class DiskInfo
+    {
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern IntPtr CreateFile(
+             [MarshalAs(UnmanagedType.LPTStr)] string filename,
+             [MarshalAs(UnmanagedType.U4)] FileAccess access,
+             [MarshalAs(UnmanagedType.U4)] FileShare share,
+                    IntPtr securityAttributes, // optional SECURITY_ATTRIBUTES struct or IntPtr.Zero
+             [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
+             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
+                    IntPtr templateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern bool DeviceIoControl(IntPtr hDevice, uint dwIoControlCode,
+            IntPtr lpInBuffer, uint nInBufferSize,
+            IntPtr lpOutBuffer, uint nOutBufferSize,
+            out uint lpBytesReturned, IntPtr lpOverlapped);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool CloseHandle(IntPtr hObject);
+
+        struct GET_LENGTH_INFORMATION
+        {
+            public long Length;
+        };
+
+        public static long GetPhysDiskSize(string physDeviceID)
+        {
+            uint IOCTL_DISK_GET_LENGTH_INFO = 0x0007405C;
+            uint dwBytesReturned;
+
+            //Example, physDeviceID == @"\\.\PHYSICALDRIVE1"
+            IntPtr hVolume = CreateFile(physDeviceID, FileAccess.ReadWrite,
+                FileShare.None, IntPtr.Zero, FileMode.Open, FileAttributes.Normal, IntPtr.Zero);
+
+            GET_LENGTH_INFORMATION outputInfo = new GET_LENGTH_INFORMATION();
+            outputInfo.Length = 0;
+
+            IntPtr outBuff = Marshal.AllocHGlobal(Marshal.SizeOf(outputInfo));
+
+            bool devIOPass = DeviceIoControl(hVolume,
+                                IOCTL_DISK_GET_LENGTH_INFO,
+                                IntPtr.Zero, 0,
+                                outBuff, (uint)Marshal.SizeOf(outputInfo),
+                                out dwBytesReturned,
+                                IntPtr.Zero);
+
+            CloseHandle(hVolume);
+
+            outputInfo = (GET_LENGTH_INFORMATION)Marshal.PtrToStructure(outBuff, typeof(GET_LENGTH_INFORMATION));
+
+            Marshal.FreeHGlobal(hVolume);
+            Marshal.FreeHGlobal(outBuff);
+
+            return outputInfo.Length;
+        }
+    }
 
 }

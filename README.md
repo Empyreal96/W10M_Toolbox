@@ -2,22 +2,18 @@
 
 A desktop tool to help with various task and configurations with Windows Phones
 
-![](1.png)
-![](2.png)
-![](3.png)
+![](1.png | width=50)
+![](2.png | width=50)
+![](3.png | width=50)
+![](4.png | width=50)
 
 
 ### Updated:
 Added:
-- Modify Page File size
-- Failsafe for if the reg file is already mounted (in case the app crashes while hives mounted)
-- Debug messages
-- Device Portal on/off and Auth
-- Developer Mode config
-- Windows Firewall Config
-- Fixes to reading Reg Keys to avoid null returns
-- Windows Update settings
-- Flight Signing enabler
+- Backup your Phone's whole disk and/or MainOS,Data and EFIESP
+- Convert WP8 FFU files to `.vhdx` (W10M FFUs not currently supported)
+
+(NOTE: Disk reading is slow on my tests, I plan to look at improving this. Also there way be a few bugs, this is my first time using disk management.)
 
 
 # What can it do?
