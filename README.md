@@ -45,3 +45,4 @@ Added:
 - WPInternals is required to automate various tasks, the latest will be downloaded through the app, and saved in the apps's data folder
 - Some code has beed modified from WPInternals (Mass Storage Detection), snippets from many StackExchange pages.
 - Uses [dd for windows](http://www.chrysocome.net/dd) for partition backup only
+- Uses [FFUConvert](https://github.com/smourier/FfuConvert) modified to suit the toolbox
