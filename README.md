@@ -2,10 +2,9 @@
 
 A desktop tool to help with various task and configurations with Windows Phones
 
-![](1.png | width=50)
-![](2.png | width=50)
-![](3.png | width=50)
-![](4.png | width=50)
+<img src="1.png" width="400" height="225"> <img src="2.png" width="400" height="225">
+<img src="3.png" width="400" height="225">
+<img src="4.png" width="400" height="225">
 
 
 ### Updated:
