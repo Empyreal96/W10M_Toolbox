@@ -1,4 +1,9 @@
-﻿using Microsoft.Win32;
+﻿////
+//// Another helper thanks to a few stackexchange posts, cann't remember the link 
+////
+////
+
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

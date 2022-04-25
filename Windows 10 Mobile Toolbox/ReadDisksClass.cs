@@ -1,4 +1,10 @@
-﻿using System;
+﻿////
+//// Put together from stackexchange.. 'it just works'
+////
+
+
+
+using System;
 using System.Runtime.InteropServices;
 using System.IO;
 using Microsoft.Win32.SafeHandles;
