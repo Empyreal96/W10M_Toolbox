@@ -11,7 +11,7 @@
     <Description>Simple tool to help WP users manage their Phone.</Description>
     <Copyright>Empyreal96</Copyright>
     <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>Empy_W10MToolboxKey.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>W10MToolbox_key.snk</AssemblyOriginatorKeyFile>
     <Platforms>AnyCPU;x64;x86</Platforms>
   </PropertyGroup>
 

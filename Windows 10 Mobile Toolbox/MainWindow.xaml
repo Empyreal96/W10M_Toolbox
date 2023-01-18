@@ -363,6 +363,115 @@
                         mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="10,160,676,173"/>
                 </Grid>
             </TabItem>
+            <TabItem Header=" Registry " Name="RegistryTab"
+                     Padding="5,5,5,5"
+                     Background="#FF1E1E1E">
+                <Grid Background="#FF1E1E1E">
+                    <mah:MetroHeader 
+                        x:Name="RegistryHeader"
+                        Height="35"
+                        Content=" Modify/Add Registry values on the device in Mass Storage Mode"
+                        VerticalAlignment="Top" FontWeight="Normal" FontSize="20" Foreground="#FF4390DF" Margin="10,0,10,0"/>
+                    <ComboBox x:Name="SelectHiveComboBox" 
+                        Height="46"
+                              IsEnabled="False"
+                        mah:TextBoxHelper.HasText="True"
+                        mah:TextBoxHelper.ButtonContent="Select Hive"
+                        SelectionChanged="SelectHiveComboBox_SelectionChanged"
+                        VerticalAlignment="Top" 
+                        Margin="10,45,400,0" 
+                        Text="Select Hive" 
+                        Background="#FF333337" 
+                        BorderBrush="#FF686868" 
+                        Foreground="White" 
+                        FontFamily="Segoe UI" 
+                        FontSize="14" Tag="SelectHive" ToolTip="Select Hive" mah:TextBoxHelper.Watermark="Select Hive">
+                        <ComboBoxItem x:Name="FirstCombo1" Content="HKLM\SOFTWARE"/>
+                        <ComboBoxItem x:Name="SecondCombo1" Content="HKLM\SYSTEM"/>
+                        <ComboBoxItem x:Name="ThirdCombo1" Content="Not Implimented Yet"/>
+
+                    </ComboBox>
+                    <Button x:Name="LoadSelectedHiveBtn"
+                        Click="LoadSelectedHiveBtn_Click"
+                        Content="Select Hive"
+                            IsEnabled="False"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="417,47,269,286"/>
+                    <TextBox x:Name="RegistryPathTextBox" Background="#FF2D2D30"
+                        BorderBrush="#FF686868" Margin="10,107,354,235" Visibility="Visible" IsEnabled="False" Foreground="#FFFBFBFB" 
+                             mah:TextBoxHelper.Watermark="Path i.e ControlSet001\Control\CrashControl" FontSize="14"/>
+                    <TextBox x:Name="RegistryValueTextBox"  Background="#FF2D2D30"
+                        BorderBrush="#FF686868"  Visibility="Visible" IsEnabled="False" Foreground="#FFFBFBFB" 
+                             mah:TextBoxHelper.Watermark="Value" FontSize="14" Margin="10,153,584,189"/>
+                    <ComboBox x:Name="SelectHiveTypeComboBox" 
+                        Height="31"
+                        mah:TextBoxHelper.HasText="True"
+                        mah:TextBoxHelper.ButtonContent="Value Type"
+                        SelectionChanged="SelectHiveTypeComboBox_SelectionChanged"
+                        VerticalAlignment="Top" 
+                        Margin="228,153,444,0" 
+                        Text="Value Type" 
+                        Background="#FF333337" 
+                        BorderBrush="#FF686868" 
+                        Foreground="White" 
+                        FontFamily="Segoe UI" 
+                              Visibility="Visible" IsEnabled="False"
+                        FontSize="14" Tag="ValueType" ToolTip="Value Type" mah:TextBoxHelper.Watermark="Value Type">
+                        <ComboBoxItem x:Name="FirstCombo2" Content="DWORD"/>
+                        <ComboBoxItem x:Name="SecondCombo2" Content="String"/>
+                        <ComboBoxItem x:Name="ThirdCombo2" Content="Extended String"/>
+                        <ComboBoxItem x:Name="FourthCombo2" Content="QWORD"/>
+                        <ComboBoxItem x:Name="FifthCombo2" Content="Multi String"/>
+                        <!--ComboBoxItem x:Name="SixthCombo2" Content="Binary"/-->
+
+                    </ComboBox>
+                    <Button x:Name="RegistryApplyNewValueBtn"
+                        Click="RegistryApplyNewValueBtn_Click"
+                        Content="Apply"
+                            Visibility="Visible" IsEnabled="False"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="343,225,343,107"/>
+
+
+                    <Button x:Name="MountRegBtn1"
+                           Click="MountRegBtn1_Click"
+                            Content="Mount Registry"
+                            Background="#FF2D2D30"
+                            BorderBrush="#FF333333"
+                            Foreground="#FFFBFBFB" 
+                            mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="667,47,19,286"/>
+
+                    <Button x:Name="UnMountRegBtn1"
+                            Click="UnMountRegBtn1_Click"
+                            Content="Unload Registry"
+                            Background="#FF2D2D30"
+                            BorderBrush="#FF333333"
+                            Foreground="#FFFBFBFB" 
+                            mah:ControlsHelper.FocusBorderBrush="#FF333337" IsEnabled="False" Visibility="Hidden" Margin="667,47,19,286"/>
+                    <TextBox x:Name="RegistryKeyName"  Background="#FF2D2D30"
+                        BorderBrush="#FF686868"  Visibility="Visible" IsEnabled="False" Foreground="#FFFBFBFB" 
+                        mah:TextBoxHelper.Watermark="Key Name i.e: CrashDumpEnabled" FontSize="14" Margin="461,107,19,235"/>
+                    <Button x:Name="RegHelpBtn"
+                        Click="RegHelpBtn_Click"
+                        Content="Help"
+                        Background="#FF2D2D30"
+                        BorderBrush="#FF333333"
+                        Foreground="#FFFBFBFB" 
+                        
+                        mah:ControlsHelper.FocusBorderBrush="#FF333337" Margin="735,2,10,337"/>
+
+                    <TextBlock x:Name="RegPageDisclaimer"
+                               Text="Make sure to use the correct spelling and value when modifying the registry, incorrect changes can result in serious issues occuring.&#x0a;This page is very WIP at the moment please procede with caution and report issues."
+                               Foreground="#FFFBFBFB" Margin="10,297,10,2"
+                               FontSize="16"
+                               TextWrapping="Wrap"/>
+
+                </Grid>
+            </TabItem>
         </mah:MetroTabControl>
 
     </Grid>

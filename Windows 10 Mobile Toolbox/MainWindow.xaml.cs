@@ -140,6 +140,10 @@ namespace W10M_Toolbox
 
 
         BackgroundWorker worker;
+
+        string selectedHive;
+        string selectedKeyType;
+
         #endregion
 
         public MainWindow()
@@ -183,7 +187,7 @@ namespace W10M_Toolbox
                 "- Internet Access (Only for downloading Application Assets below)";
             UpdaterInfotext.Text = "Click \"View Update Log\" or \"Installed Packages\" to view the respective logs.\n\nSelect a build to download and flash. ";
             BackupOutput.Text = "Here you can backup either the whole Disk or selected partitions. Make sure your phone is fully charged before a full disk backup!\n\nThis uses \"dd for windows by John Newbigin\" to make the partition backups only\n\n";
-
+            CheckForDevice();
         }
 
 
@@ -279,7 +283,7 @@ namespace W10M_Toolbox
                                 MainOSLabel = VolumeLabel;
                                 IsBootedToMSC = true;
                                 MAINOS_DETAIL = $"MAINOS FOUND: PhysicalDrive: {MAINOS_PHYSICAL} | Drive: {MAINOS_DRIVE} | Size: {((long)MAINOS_SIZE).ToFileSize()}";
-                               
+
 
                                 Debug.WriteLine($"MAINOS FOUND: PhysicalDrive: {MAINOS_PHYSICAL} | Drive: {MAINOS_DRIVE} | Size: {((long)MAINOS_SIZE).ToFileSize()}");
                                 break;
@@ -325,7 +329,15 @@ namespace W10M_Toolbox
                 else
                 {
                     //We ONLY want to copy the file from DPP, DON'T OPEN/READ IT FROM THE DPP PARTITION.. to be safe
-                    File.Copy($"{Drive}\\DPP\\MMO\\product.dat", ".\\AppData\\Temp\\product.dat", true);
+                    if (!Directory.Exists($"{Drive}\\DPP\\MMO"))
+                    {
+                        File.Copy($"{Drive}\\DPP\\NOKIA\\product.dat", ".\\AppData\\Temp\\product.dat", true);
+
+                    }
+                    else
+                    {
+                        File.Copy($"{Drive}\\DPP\\MMO\\product.dat", ".\\AppData\\Temp\\product.dat", true);
+                    }
                     Debug.WriteLine("Copied product.dat to TEMP\n");
 
                     //find product info
@@ -410,6 +422,10 @@ namespace W10M_Toolbox
                         MountRegBtn.IsEnabled = false;
                         UnMountRegBtn.Visibility = Visibility.Visible;
                         MountRegBtn.Visibility = Visibility.Hidden;
+                        UnMountRegBtn1.IsEnabled = true;
+                        MountRegBtn1.IsEnabled = false;
+                        UnMountRegBtn1.Visibility = Visibility.Visible;
+                        MountRegBtn1.Visibility = Visibility.Hidden;
                         SaveBasicChangesBtn.Visibility = Visibility.Visible;
                     }
                     if (WUSettings != null)
@@ -616,18 +632,25 @@ namespace W10M_Toolbox
                     {
                         if (WifiSoundSettingon != null)
                         {
-
-                            if (CamSoundSetting.GetValue("ShutterSoundUnlocked").ToString() != "1")
+                            // Some devices don't have this value by default
+                            if (CamSoundSetting.GetValue("ShutterSoundUnlocked") == null)
                             {
-                                if (WifiSoundSettingon.GetValue("Disabled").ToString() != "0")
-                                {
-                                    ExtraSoundSetting.IsChecked = false;
-                                }
+                                ExtraSoundSetting.IsChecked = false;
                             }
                             else
                             {
+                                if (CamSoundSetting.GetValue("ShutterSoundUnlocked").ToString() != "1")
+                                {
+                                    if (WifiSoundSettingon.GetValue("Disabled").ToString() != "0")
+                                    {
+                                        ExtraSoundSetting.IsChecked = false;
+                                    }
+                                }
+                                else
+                                {
 
-                                ExtraSoundSetting.IsChecked = true;
+                                    ExtraSoundSetting.IsChecked = true;
+                                }
                             }
                         }
                     }
@@ -638,10 +661,11 @@ namespace W10M_Toolbox
                 }
 
             }
-            catch
+            catch (Exception ex)
             {
                 IsRegistryMounted = false;
                 BasicTweakPageHeader.Text = "Device not found, Make sure you are in Mass Storage Mode";
+                Debug.WriteLine($"EXCEPTION: \n{ex.Message}\n{ex.Source}\n{ex.StackTrace}");
             }
 
         }
@@ -730,7 +754,7 @@ namespace W10M_Toolbox
             {
                 File.Delete(@".\AppData\Temp\DeviceLog.cab");
             }
-            CheckForDevice();
+            
 
 
 
@@ -854,7 +878,7 @@ namespace W10M_Toolbox
             }
             else
             {
-                DeviceInfotext.Text = "Checking for connected devices, Please wait for IUTool and GetDuLogs to finish.\n\nIf your device isn't detected click \"Rescan for Device\"";
+                DeviceInfotext.Text = "Checking for connected devices, Please wait for IUTool and GetDuLogs to finish.\n\nIf your device isn't detected click \"Rescan for Device\"\n\nIf this window seems frozen close and reopen the app (Usually happens when switching to Mass Storage)";
                 string info = DeviceHelper.DeviceHelper.GetDeviceInfo();
                 //string logs = DeviceHelper.DeviceHelper.ReadDULogs();
 
@@ -1006,12 +1030,12 @@ namespace W10M_Toolbox
                 string[] files = System.IO.Directory.GetFiles($".\\AppData\\PhoneUpdates\\{currentbuild}\\{DeviceSN}");
                 if (files.Length == 0)
                 {
-                    UpdaterBuildOutput.Text = $"Build {selectedbuild} has been selected.\n\n Files have already been downloaded for this device";
-
+                    UpdaterBuildOutput.Text = $"Build {selectedbuild} has been selected.\n\n Files need to be downloaded.";
                 }
                 else
                 {
-                    UpdaterBuildOutput.Text = $"Build {selectedbuild} has been selected.\n\n Files need to be downloaded.";
+
+                    UpdaterBuildOutput.Text = $"Build {selectedbuild} has been selected.\n\n Files have already been downloaded for this device";
 
 
                 }
@@ -1092,7 +1116,9 @@ namespace W10M_Toolbox
                     }
 
                     // timer.Start();
-                    UpdaterBuildOutput.Text = $"Sending {num} files to device from:\n\"{fullpath}\"\n\nThis will take several minutes. Please Wait";
+                    UpdaterBuildOutput.Text = $"Sending {num} files to device from:\n\"{fullpath}\"\n\nThis will take several minutes, Progress will show on device shortly.. 'Settings > Update & Security > Phone Update'\n\n" +
+                        $"If the update hasn't started after 5 minutes make sure device is detected by the app, and that you have downloaded the Update here first.\n\n" +
+                        $"If you recieve errors, you can view the Update Log on the right.\n\n\n";
                     UpdaterProgBar.IsIndeterminate = true;
                     await Task.Run(() =>
                     {
@@ -2740,5 +2766,211 @@ namespace W10M_Toolbox
             }
         }
 
+        private void SelectHiveComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            selectedHive = (sender as ComboBox).SelectedItem.ToString().Replace("System.Windows.Controls.ComboBoxItem: ", "");
+        }
+
+        private void LoadSelectedHiveBtn_Click(object sender, RoutedEventArgs e)
+        {
+
+            RegistryPathTextBox.IsEnabled = true;
+            RegistryValueTextBox.IsEnabled = true;
+            SelectHiveTypeComboBox.IsEnabled = true;
+            RegistryApplyNewValueBtn.IsEnabled = true;
+            RegistryKeyName.IsEnabled = true;
+        }
+
+        private void SelectHiveTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            selectedKeyType = (sender as ComboBox).SelectedItem.ToString().Replace("System.Windows.Controls.ComboBoxItem: ", "");
+        }
+
+        private void RegistryApplyNewValueBtn_Click(object sender, RoutedEventArgs e)
+        {
+
+            if (RegistryPathTextBox.Text == "")
+            {
+
+            }
+            else
+            {
+                if (RegistryKeyName.Text == "")
+                {
+                    MessageBox.Show("Registry Key Name cannot be blank");
+                   
+                    return;
+                }
+                if (RegistryValueTextBox.Text == "")
+                {
+                    MessageBox.Show("Registry Value cannot be blank");
+                    return;
+                }
+                if (selectedKeyType == "")
+                {
+                    MessageBox.Show("Registry Value Type cannot be blank");
+                    return;
+                }
+                string userKeyPath = RegistryPathTextBox.Text;
+                int DWORDValue = 0;
+                int QWORDValue = 0;
+
+               switch (selectedKeyType)
+                {
+                    case "DWORD":
+                        Int32.TryParse(RegistryValueTextBox.Text, out DWORDValue);
+                        switch (selectedHive)
+                        {
+                            case "HKLM\\SOFTWARE":
+                                RegistryKey userWritenKeySOFTWARE = registry2.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySOFTWARE.SetValue(RegistryKeyName.Text, DWORDValue, RegistryValueKind.DWord);
+                                Debug.WriteLine($"Written value \"{DWORDValue}\" to \"HKLM\\SOFTWARE\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+                                break;
+                            case "HKLM\\SYSTEM":
+                                RegistryKey userWritenKeySYSTEM = registry.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySYSTEM.SetValue(RegistryKeyName.Text, DWORDValue, RegistryValueKind.DWord);
+                                Debug.WriteLine($"Written value \"{DWORDValue}\" to \"HKLM\\SYSTEM\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+
+                                break;
+                        }
+                        break;
+                    case "String":
+                        string registryString = RegistryValueTextBox.Text;
+                        switch (selectedHive)
+                        {
+                            case "HKLM\\SOFTWARE":
+                                RegistryKey userWritenKeySOFTWARE = registry2.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySOFTWARE.SetValue(RegistryKeyName.Text, registryString, RegistryValueKind.String);
+                                Debug.WriteLine($"Written value \"{registryString}\" to \"HKLM\\SOFTWARE\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+
+                                break;
+                            case "HKLM\\SYSTEM":
+                                RegistryKey userWritenKeySYSTEM = registry.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySYSTEM.SetValue(RegistryKeyName.Text, registryString, RegistryValueKind.String);
+                                Debug.WriteLine($"Written value \"{registryString}\" to \"HKLM\\SYSTEM\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+                                break;
+                        }
+                        break;
+                    case "Extended String":
+                        string registryExString = RegistryValueTextBox.Text;
+                        switch (selectedHive)
+                        {
+                            case "HKLM\\SOFTWARE":
+                                RegistryKey userWritenKeySOFTWARE = registry2.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySOFTWARE.SetValue(RegistryKeyName.Text, registryExString, RegistryValueKind.ExpandString);
+                                Debug.WriteLine($"Written value \"{registryExString}\" to \"HKLM\\SOFTWARE\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+
+                                break;
+                            case "HKLM\\SYSTEM":
+                                RegistryKey userWritenKeySYSTEM = registry.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySYSTEM.SetValue(RegistryKeyName.Text, registryExString, RegistryValueKind.ExpandString);
+                                Debug.WriteLine($"Written value \"{registryExString}\" to \"HKLM\\SYSTEM\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+
+                                break;
+                        }
+                        break;
+                    case "QWORD":
+
+                        Int32.TryParse(RegistryValueTextBox.Text, out QWORDValue);
+                        switch (selectedHive)
+                        {
+                            case "HKLM\\SOFTWARE":
+                                RegistryKey userWritenKeySOFTWARE = registry2.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySOFTWARE.SetValue(RegistryKeyName.Text, QWORDValue, RegistryValueKind.QWord);
+                                Debug.WriteLine($"Written value \"{QWORDValue}\" to \"HKLM\\SOFTWARE\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+
+                                break;
+                            case "HKLM\\SYSTEM":
+                                RegistryKey userWritenKeySYSTEM = registry.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySYSTEM.SetValue(RegistryKeyName.Text, QWORDValue, RegistryValueKind.QWord);
+                                Debug.WriteLine($"Written value \"{QWORDValue}\" to \"HKLM\\SYSTEM\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+
+                                break;
+                        }
+                        break;
+                    case "Multi String":
+                        if (RegistryValueTextBox.Text.Contains(",") == false)
+                        {
+                            MessageBox.Show("If you want to add a \"Multi-Line String\" make sure to seperate each line with a comma (,)");
+                            return;
+                        }
+                        string userValue = RegistryValueTextBox.Text;
+                        string[] registryExString1 = userValue.Split(",");
+                        switch (selectedHive)
+                        {
+                            case "HKLM\\SOFTWARE":
+                                RegistryKey userWritenKeySOFTWARE = registry2.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySOFTWARE.SetValue(RegistryKeyName.Text, registryExString1, RegistryValueKind.ExpandString);
+                                Debug.WriteLine($"Written value \"{userValue}\" (Multi Line) to \"HKLM\\SOFTWARE\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+
+                                break;
+                            case "HKLM\\SYSTEM":
+                                RegistryKey userWritenKeySYSTEM = registry.CreateSubKey(userKeyPath, RegistryKeyPermissionCheck.ReadWriteSubTree);
+                                userWritenKeySYSTEM.SetValue(RegistryKeyName.Text, registryExString1, RegistryValueKind.ExpandString);
+                                Debug.WriteLine($"Written value \"{userValue}\" (Multi Line) to \"HKLM\\SYSTEM\\{userKeyPath}\\{RegistryKeyName.Text}\"");
+
+
+                                break;
+                        }
+                        break;
+                    case "Binary":
+                        // not implimented popup
+                        MessageBox.Show("Binary isn't available yet");
+                        break;
+                }
+
+            
+           
+        }
+    }
+
+    private void MountRegBtn1_Click(object sender, RoutedEventArgs e)
+    {
+            try
+            {
+                CheckForReg();
+                MassStorage();
+                LoadSelectedHiveBtn.IsEnabled = true;
+                SelectHiveComboBox.IsEnabled = true;
+            } catch (Exception ex)
+            {
+                LoadSelectedHiveBtn.IsEnabled = false;
+                SelectHiveComboBox.IsEnabled = false;
+            }
+        
+    }
+
+    private void UnMountRegBtn1_Click(object sender, RoutedEventArgs e)
+    {
+        registry.Close();
+        registry2.Close();
+        //
+        string regunloadstring = RegistryInterop.Unload();
+        if (regunloadstring == "Error unloading Registry. Try again in a minute.")
+        {
+            BasicTweakPageHeader.Text = "Error unloading Registry. Try again in a minute.";
+        }
+        else
+        {
+            RegistryHeader.Content = $"{regunloadstring}  Unload Successful";
+            IsRegistryMounted = false;
+            UnMountRegBtn1.IsEnabled = false;
+            MountRegBtn1.IsEnabled = true;
+            UnMountRegBtn1.Visibility = Visibility.Hidden;
+            MountRegBtn1.Visibility = Visibility.Visible;
+        }
+    }
+
+        private void RegHelpBtn_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Help:\n" +
+                "DWORD: A small number used for registry values, for example: If you have a value \"Enable\" it's value could be \"1\"\n\n" +
+                "QWORD: A long number used for a small amount of registry values for storing data\n\n" +
+                "String: A line of text, for example: \"FilePath\" could contain the string value \"C:\\Windows\\RandomFolder\"\n\n" +
+                "Expandable String: A line of text but it would contain a variable, for example: \"SystemRoot\" could contain \"%WinDir%\" as it is an Environment Variable\n\n" +
+                "Multi-Line String: A set of strings/words that cover multiple lines, for example the value \"FileList\" could use:\nFile1\nFile2\nFile3\nFile4\n\n" +
+                "");
+
+        }
     }
 }
